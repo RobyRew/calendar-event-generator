@@ -219,6 +219,9 @@ export interface CalendarEvent {
   lastModified?: Date;
   sequence?: number;
   
+  // Source tracking (for imported events)
+  sourceFile?: string;
+  
   // Platform-specific extensions
   appleExtensions?: AppleExtensions;
   microsoftExtensions?: MicrosoftExtensions;

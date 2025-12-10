@@ -70,13 +70,28 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
   const [activeTab, setActiveTab] = useState('basic');
   const [categoriesInput, setCategoriesInput] = useState(event.categories?.join(', ') || '');
 
-  // Format dates for input fields
+  // Format dates for input fields (using local time, not UTC)
   const formatDateForInput = (date: Date): string => {
-    return date.toISOString().slice(0, 16);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   const formatDateOnly = (date: Date): string => {
-    return date.toISOString().slice(0, 10);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Safe date parsing that won't crash on invalid input
+  const parseDateSafe = (value: string, fallback: Date): Date => {
+    if (!value || value.trim() === '') return fallback;
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? fallback : parsed;
   };
 
   const handleChange = useCallback(<K extends keyof CalendarEvent>(field: K, value: CalendarEvent[K]) => {
@@ -84,7 +99,8 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
   }, [event, onChange]);
 
   const handleStartDateChange = (value: string) => {
-    const newStart = new Date(value);
+    const newStart = parseDateSafe(value, event.startDate);
+    if (newStart === event.startDate) return; // No change if invalid
     const duration = event.endDate.getTime() - event.startDate.getTime();
     const newEnd = new Date(newStart.getTime() + duration);
     onChange({ ...event, startDate: newStart, endDate: newEnd });
@@ -204,13 +220,19 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
                     label="Start Date"
                     type="date"
                     value={formatDateOnly(event.startDate)}
-                    onChange={(e) => handleChange('startDate', new Date(e.target.value))}
+                    onChange={(e) => {
+                      const parsed = parseDateSafe(e.target.value, event.startDate);
+                      if (parsed !== event.startDate) handleChange('startDate', parsed);
+                    }}
                   />
                   <Input
                     label="End Date"
                     type="date"
                     value={formatDateOnly(event.endDate)}
-                    onChange={(e) => handleChange('endDate', new Date(e.target.value))}
+                    onChange={(e) => {
+                      const parsed = parseDateSafe(e.target.value, event.endDate);
+                      if (parsed !== event.endDate) handleChange('endDate', parsed);
+                    }}
                   />
                 </>
               ) : (
@@ -225,7 +247,10 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
                     label="End Date & Time"
                     type="datetime-local"
                     value={formatDateForInput(event.endDate)}
-                    onChange={(e) => handleChange('endDate', new Date(e.target.value))}
+                    onChange={(e) => {
+                      const parsed = parseDateSafe(e.target.value, event.endDate);
+                      if (parsed !== event.endDate) handleChange('endDate', parsed);
+                    }}
                   />
                 </>
               )}

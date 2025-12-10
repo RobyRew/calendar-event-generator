@@ -30,7 +30,7 @@ import { parseICSFile } from '@/lib';
 interface ImportExportPanelProps {
   calendar: Calendar;
   selectedEvent: CalendarEvent | null;
-  onImport: (calendar: Calendar) => void;
+  onImport: (events: CalendarEvent[]) => void;
   onError: (error: string) => void;
   onSuccess: (message: string) => void;
 }
@@ -45,22 +45,86 @@ export function ImportExportPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Process files (used by both file input and drag/drop)
+  const processFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    let totalImported = 0;
+    const errors: string[] = [];
+    const allEvents: CalendarEvent[] = [];
+
+    for (const file of fileArray) {
+      // Check file extension
+      const ext = file.name.toLowerCase().split('.').pop();
+      if (!['ics', 'ical', 'ifb'].includes(ext || '')) {
+        errors.push(`${file.name}: Not a valid calendar file`);
+        continue;
+      }
+
+      try {
+        const parsedCalendar = await parseICSFile(file);
+        const eventsWithSource = parsedCalendar.events.map(event => ({
+          ...event,
+          sourceFile: file.name,
+        }));
+        allEvents.push(...eventsWithSource);
+        totalImported += eventsWithSource.length;
+      } catch (error) {
+        errors.push(`${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    if (allEvents.length > 0) {
+      onImport(allEvents);
+      onSuccess(`Added ${totalImported} event(s) from ${fileArray.length} file(s)!`);
+    }
+    
+    if (errors.length > 0) {
+      onError(`Failed: ${errors.join(', ')}`);
+    }
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const calendar = await parseICSFile(file);
-      onImport(calendar);
-      onSuccess(`Imported ${calendar.events.length} event(s) successfully!`);
-    } catch (error) {
-      onError(`Failed to parse ICS file: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    await processFiles(files);
 
     // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await processFiles(files);
     }
   };
 
@@ -156,20 +220,37 @@ export function ImportExportPanel({
           type="file"
           accept=".ics,.ical,.ifb"
           onChange={handleFileSelect}
+          multiple
           className="hidden"
         />
         
-        <Button
-          variant="secondary"
-          className="w-full"
+        {/* Drag and Drop Zone */}
+        <div
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
+          className={`
+            relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
+            transition-all duration-200
+            ${isDragging 
+              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' 
+              : 'border-gray-300 dark:border-slate-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-slate-800'
+            }
+          `}
         >
-          <Upload className="w-4 h-4" />
-          Import ICS File
-        </Button>
+          <Upload className={`w-8 h-8 mx-auto mb-2 ${isDragging ? 'text-primary-500' : 'text-gray-400'}`} />
+          <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            {isDragging ? 'Drop files here...' : 'Drag & drop ICS files here'}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+            or click to browse
+          </p>
+        </div>
         
-        <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
-          Supports .ics, .ical, and .ifb files from any calendar application
+        <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
+          Supports .ics, .ical, and .ifb files • Multiple files supported
         </p>
       </Card>
 

@@ -21,6 +21,7 @@ interface CalendarState {
 
 type CalendarAction =
   | { type: 'SET_CALENDAR'; payload: Calendar }
+  | { type: 'MERGE_EVENTS'; payload: CalendarEvent[] }
   | { type: 'ADD_EVENT'; payload: CalendarEvent }
   | { type: 'UPDATE_EVENT'; payload: CalendarEvent }
   | { type: 'DELETE_EVENT'; payload: string }
@@ -37,6 +38,7 @@ interface CalendarContextType {
   deleteEvent: (eventId: string) => void;
   selectEvent: (eventId: string | null) => void;
   setCalendar: (calendar: Calendar) => void;
+  mergeEvents: (events: CalendarEvent[]) => void;
   clearEvents: () => void;
   createNewEvent: () => CalendarEvent;
   setError: (error: string | null) => void;
@@ -63,6 +65,30 @@ function calendarReducer(state: CalendarState, action: CalendarAction): Calendar
         calendar: action.payload,
         isDirty: false,
       };
+
+    case 'MERGE_EVENTS': {
+      // Merge new events with existing ones
+      // If an event with the same UID exists, generate a new UID
+      const existingUids = new Set(state.calendar.events.map(e => e.uid));
+      const newEvents = action.payload.map(e => {
+        if (existingUids.has(e.uid)) {
+          // Generate a new unique ID for duplicate
+          return {
+            ...e,
+            uid: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@calendar.local`,
+          };
+        }
+        return e;
+      });
+      return {
+        ...state,
+        calendar: {
+          ...state.calendar,
+          events: [...state.calendar.events, ...newEvents],
+        },
+        isDirty: true,
+      };
+    }
 
     case 'ADD_EVENT':
       return {
@@ -201,6 +227,10 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_CALENDAR', payload: calendar });
   }, []);
 
+  const mergeEvents = useCallback((events: CalendarEvent[]) => {
+    dispatch({ type: 'MERGE_EVENTS', payload: events });
+  }, []);
+
   const clearEvents = useCallback(() => {
     dispatch({ type: 'CLEAR_EVENTS' });
   }, []);
@@ -226,6 +256,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     deleteEvent,
     selectEvent,
     setCalendar,
+    mergeEvents,
     clearEvents,
     createNewEvent,
     setError,

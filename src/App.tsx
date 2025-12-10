@@ -3,15 +3,17 @@
  * A comprehensive calendar event generator supporting Apple, Google, and Microsoft calendars
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { CalendarProvider, useCalendar } from '@/context';
 import { Header, EventForm, EventList, ImportExportPanel, Card, Alert } from '@/components';
 import { CalendarEvent } from '@/types';
+import { parseICSFile } from '@/lib';
 
 function CalendarApp() {
   const [darkMode, setDarkMode] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [isGlobalDragging, setIsGlobalDragging] = useState(false);
 
   const {
     state,
@@ -19,7 +21,7 @@ function CalendarApp() {
     updateEvent,
     deleteEvent,
     selectEvent,
-    setCalendar,
+    mergeEvents,
     createNewEvent,
     setError,
     setSuccess,
@@ -95,8 +97,94 @@ function CalendarApp() {
     handleEditEvent(eventId);
   };
 
+  // Global drag and drop handlers for importing ICS files anywhere
+  const handleGlobalDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsGlobalDragging(true);
+  }, []);
+
+  const handleGlobalDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if we're leaving the window entirely
+    if (e.relatedTarget === null) {
+      setIsGlobalDragging(false);
+    }
+  }, []);
+
+  const handleGlobalDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleGlobalDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsGlobalDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    let totalImported = 0;
+    const errors: string[] = [];
+    const allEvents: CalendarEvent[] = [];
+
+    for (const file of Array.from(files)) {
+      const ext = file.name.toLowerCase().split('.').pop();
+      if (!['ics', 'ical', 'ifb'].includes(ext || '')) {
+        errors.push(`${file.name}: Not a valid calendar file`);
+        continue;
+      }
+
+      try {
+        const parsedCalendar = await parseICSFile(file);
+        const eventsWithSource = parsedCalendar.events.map(event => ({
+          ...event,
+          sourceFile: file.name,
+        }));
+        allEvents.push(...eventsWithSource);
+        totalImported += eventsWithSource.length;
+      } catch (error) {
+        errors.push(`${file.name}: ${error instanceof Error ? error.message : 'Parse error'}`);
+      }
+    }
+
+    if (allEvents.length > 0) {
+      mergeEvents(allEvents);
+      setSuccess(`Added ${totalImported} event(s) from ${files.length} file(s)!`);
+    }
+
+    if (errors.length > 0) {
+      setError(`Failed: ${errors.join(', ')}`);
+    }
+  }, [mergeEvents, setSuccess, setError]);
+
   return (
-    <div className={`min-h-screen gradient-mesh ${darkMode ? 'dark' : ''}`}>
+    <div 
+      className={`min-h-screen gradient-mesh ${darkMode ? 'dark' : ''}`}
+      onDragEnter={handleGlobalDragEnter}
+      onDragLeave={handleGlobalDragLeave}
+      onDragOver={handleGlobalDragOver}
+      onDrop={handleGlobalDrop}
+    >
+      {/* Global Drop Overlay */}
+      {isGlobalDragging && (
+        <div className="fixed inset-0 z-50 bg-primary-500/20 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-2xl border-2 border-dashed border-primary-500">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                <svg className="w-8 h-8 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Drop ICS files here</h3>
+              <p className="text-gray-500 dark:text-slate-400 mt-1">Release to import calendar events</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <Header
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
@@ -159,7 +247,7 @@ function CalendarApp() {
             <ImportExportPanel
               calendar={state.calendar}
               selectedEvent={selectedEvent}
-              onImport={setCalendar}
+              onImport={mergeEvents}
               onError={setError}
               onSuccess={setSuccess}
             />

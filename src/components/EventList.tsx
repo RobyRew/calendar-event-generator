@@ -6,7 +6,7 @@
 import React from 'react';
 import { CalendarEvent } from '@/types';
 import { Card, Button, Badge } from '@/components/ui';
-import { Calendar, Clock, MapPin, Repeat, Bell, Trash2, Edit, Copy } from 'lucide-react';
+import { Calendar, Clock, MapPin, Repeat, Bell, Trash2, Edit, Copy, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface EventListProps {
@@ -108,6 +108,14 @@ export function EventList({ events, selectedEventId, onSelect, onDelete, onDupli
                     {cat}
                   </Badge>
                 ))}
+              </div>
+            )}
+
+            {/* Source file indicator */}
+            {event.sourceFile && (
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-400 dark:text-slate-500">
+                <FileText className="w-3 h-3" />
+                <span className="truncate">From: {event.sourceFile}</span>
               </div>
             )}
           </div>
