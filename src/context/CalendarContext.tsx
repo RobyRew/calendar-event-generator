@@ -1,9 +1,10 @@
 /**
  * Calendar Context
  * Provides global state management for calendar events
+ * Includes undo/redo functionality
  */
 
-import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useReducer, useCallback, ReactNode, useState } from 'react';
 import { Calendar, CalendarEvent, DEFAULT_CALENDAR, DEFAULT_EVENT } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -29,7 +30,8 @@ type CalendarAction =
   | { type: 'CLEAR_EVENTS' }
   | { type: 'SET_DIRTY'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SET_SUCCESS'; payload: string | null };
+  | { type: 'SET_SUCCESS'; payload: string | null }
+  | { type: 'RESTORE_STATE'; payload: CalendarState };
 
 interface CalendarContextType {
   state: CalendarState;
@@ -43,6 +45,11 @@ interface CalendarContextType {
   createNewEvent: () => CalendarEvent;
   setError: (error: string | null) => void;
   setSuccess: (message: string | null) => void;
+  // Undo/Redo
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 // ============================================================
@@ -171,8 +178,25 @@ function calendarReducer(state: CalendarState, action: CalendarAction): Calendar
 
 const CalendarContext = createContext<CalendarContextType | null>(null);
 
+const MAX_HISTORY_SIZE = 50;
+
 export function CalendarProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(calendarReducer, initialState);
+  const [past, setPast] = useState<CalendarEvent[][]>([]);
+  const [future, setFuture] = useState<CalendarEvent[][]>([]);
+
+  // Track state changes that should be undoable
+  const saveToHistory = useCallback((currentEvents: CalendarEvent[]) => {
+    setPast(prev => {
+      const newPast = [...prev, currentEvents];
+      // Keep history size manageable
+      if (newPast.length > MAX_HISTORY_SIZE) {
+        return newPast.slice(-MAX_HISTORY_SIZE);
+      }
+      return newPast;
+    });
+    setFuture([]); // Clear redo stack on new action
+  }, []);
 
   const createNewEvent = useCallback((): CalendarEvent => {
     const now = new Date();
@@ -199,41 +223,47 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addEvent = useCallback((eventData: Partial<CalendarEvent>) => {
+    saveToHistory(state.calendar.events);
     const newEvent = {
       ...createNewEvent(),
       ...eventData,
     };
     dispatch({ type: 'ADD_EVENT', payload: newEvent });
-  }, [createNewEvent]);
+  }, [createNewEvent, saveToHistory, state.calendar.events]);
 
   const updateEvent = useCallback((event: CalendarEvent) => {
+    saveToHistory(state.calendar.events);
     const updatedEvent = {
       ...event,
       lastModified: new Date(),
       sequence: (event.sequence || 0) + 1,
     };
     dispatch({ type: 'UPDATE_EVENT', payload: updatedEvent });
-  }, []);
+  }, [saveToHistory, state.calendar.events]);
 
   const deleteEvent = useCallback((eventId: string) => {
+    saveToHistory(state.calendar.events);
     dispatch({ type: 'DELETE_EVENT', payload: eventId });
-  }, []);
+  }, [saveToHistory, state.calendar.events]);
 
   const selectEvent = useCallback((eventId: string | null) => {
     dispatch({ type: 'SELECT_EVENT', payload: eventId });
   }, []);
 
   const setCalendar = useCallback((calendar: Calendar) => {
+    saveToHistory(state.calendar.events);
     dispatch({ type: 'SET_CALENDAR', payload: calendar });
-  }, []);
+  }, [saveToHistory, state.calendar.events]);
 
   const mergeEvents = useCallback((events: CalendarEvent[]) => {
+    saveToHistory(state.calendar.events);
     dispatch({ type: 'MERGE_EVENTS', payload: events });
-  }, []);
+  }, [saveToHistory, state.calendar.events]);
 
   const clearEvents = useCallback(() => {
+    saveToHistory(state.calendar.events);
     dispatch({ type: 'CLEAR_EVENTS' });
-  }, []);
+  }, [saveToHistory, state.calendar.events]);
 
   const setError = useCallback((error: string | null) => {
     dispatch({ type: 'SET_ERROR', payload: error });
@@ -249,6 +279,46 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Undo/Redo functionality
+  const undo = useCallback(() => {
+    if (past.length === 0) return;
+    
+    const previousEvents = past[past.length - 1];
+    const newPast = past.slice(0, -1);
+    
+    setFuture(prev => [...prev, state.calendar.events]);
+    setPast(newPast);
+    
+    dispatch({
+      type: 'SET_CALENDAR',
+      payload: {
+        ...state.calendar,
+        events: previousEvents,
+      },
+    });
+  }, [past, state.calendar]);
+
+  const redo = useCallback(() => {
+    if (future.length === 0) return;
+    
+    const nextEvents = future[future.length - 1];
+    const newFuture = future.slice(0, -1);
+    
+    setPast(prev => [...prev, state.calendar.events]);
+    setFuture(newFuture);
+    
+    dispatch({
+      type: 'SET_CALENDAR',
+      payload: {
+        ...state.calendar,
+        events: nextEvents,
+      },
+    });
+  }, [future, state.calendar]);
+
+  const canUndo = past.length > 0;
+  const canRedo = future.length > 0;
+
   const value: CalendarContextType = {
     state,
     addEvent,
@@ -261,6 +331,10 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     createNewEvent,
     setError,
     setSuccess,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   };
 
   return (

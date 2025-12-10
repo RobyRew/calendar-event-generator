@@ -176,6 +176,9 @@ export interface CalendarEvent {
   summary: string;
   description?: string;
   
+  // Color (for UI display)
+  color?: string;
+  
   // Date/Time
   startDate: Date;
   endDate: Date;

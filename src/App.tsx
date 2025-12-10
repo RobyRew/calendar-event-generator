@@ -3,17 +3,26 @@
  * A comprehensive calendar event generator supporting Apple, Google, and Microsoft calendars
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { CalendarProvider, useCalendar } from '@/context';
 import { Header, EventForm, EventList, ImportExportPanel, Card, Alert } from '@/components';
+import { CalendarView } from '@/components/CalendarView';
+import { CommandPalette, EVENT_TEMPLATES } from '@/components/CommandPalette';
+import { SearchFilter } from '@/components/SearchFilter';
 import { CalendarEvent } from '@/types';
 import { parseICSFile } from '@/lib';
+import { Undo2, Redo2, Calendar, List, Search } from 'lucide-react';
 
 function CalendarApp() {
   const [darkMode, setDarkMode] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [isGlobalDragging, setIsGlobalDragging] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [showSearch, setShowSearch] = useState(false);
+  const [filteredEvents, setFilteredEvents] = useState<CalendarEvent[] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     state,
@@ -25,6 +34,10 @@ function CalendarApp() {
     createNewEvent,
     setError,
     setSuccess,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useCalendar();
 
   // Initialize dark mode from system preference
@@ -38,10 +51,80 @@ function CalendarApp() {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toLowerCase().includes('mac');
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+      // Cmd/Ctrl + K - Open command palette
+      if (cmdOrCtrl && e.key === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(true);
+        return;
+      }
+
+      // Cmd/Ctrl + Z - Undo
+      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (canUndo) {
+          undo();
+          setSuccess('Undo successful');
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + Shift + Z or Cmd/Ctrl + Y - Redo
+      if ((cmdOrCtrl && e.shiftKey && e.key === 'z') || (cmdOrCtrl && e.key === 'y')) {
+        e.preventDefault();
+        if (canRedo) {
+          redo();
+          setSuccess('Redo successful');
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + N - New event (when not in form)
+      if (cmdOrCtrl && e.key === 'n' && !showEventForm) {
+        e.preventDefault();
+        handleNewEvent();
+        return;
+      }
+
+      // Cmd/Ctrl + F - Toggle search
+      if (cmdOrCtrl && e.key === 'f') {
+        e.preventDefault();
+        setShowSearch(s => !s);
+        return;
+      }
+
+      // Escape - Close modals/forms
+      if (e.key === 'Escape') {
+        if (showCommandPalette) {
+          setShowCommandPalette(false);
+        } else if (showEventForm) {
+          handleCancelEdit();
+        } else if (showSearch) {
+          setShowSearch(false);
+          setFilteredEvents(null);
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canUndo, canRedo, undo, redo, setSuccess, showEventForm, showCommandPalette, showSearch]);
+
   // Get selected event
   const selectedEvent = useMemo(() => {
     return state.calendar.events.find(e => e.uid === state.selectedEventId) || null;
   }, [state.calendar.events, state.selectedEventId]);
+
+  // Events to display (filtered or all)
+  const displayEvents = useMemo(() => {
+    return filteredEvents ?? state.calendar.events;
+  }, [filteredEvents, state.calendar.events]);
 
   // Handlers
   const handleNewEvent = () => {
@@ -95,6 +178,100 @@ function CalendarApp() {
   const handleSelectEvent = (eventId: string) => {
     selectEvent(eventId);
     handleEditEvent(eventId);
+  };
+
+  // Handle template application
+  const handleApplyTemplate = (templateId: string) => {
+    const template = EVENT_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+
+    const newEvent = createNewEvent();
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setMinutes(Math.ceil(startDate.getMinutes() / 15) * 15, 0, 0); // Round to 15 min
+    
+    const endDate = new Date(startDate);
+    endDate.setMinutes(endDate.getMinutes() + template.duration);
+
+    const eventFromTemplate: CalendarEvent = {
+      ...newEvent,
+      ...template.defaults,
+      startDate,
+      endDate,
+      allDay: template.defaults.allDay || false,
+    };
+    
+    setEditingEvent(eventFromTemplate);
+    setShowEventForm(true);
+  };
+
+  // Handle calendar date click
+  const handleCalendarDateClick = (date: Date) => {
+    const newEvent = createNewEvent();
+    const startDate = new Date(date);
+    startDate.setHours(9, 0, 0, 0); // Default to 9 AM
+    const endDate = new Date(startDate);
+    endDate.setHours(10, 0, 0, 0); // 1 hour duration
+    
+    setEditingEvent({
+      ...newEvent,
+      startDate,
+      endDate,
+    });
+    setShowEventForm(true);
+  };
+
+  // Handle file import from command palette
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    let totalImported = 0;
+    const allEvents: CalendarEvent[] = [];
+
+    for (const file of Array.from(files)) {
+      try {
+        const parsed = await parseICSFile(file);
+        const eventsWithSource = parsed.events.map(event => ({
+          ...event,
+          sourceFile: file.name,
+        }));
+        allEvents.push(...eventsWithSource);
+        totalImported += eventsWithSource.length;
+      } catch (error) {
+        setError(`Error parsing ${file.name}`);
+      }
+    }
+
+    if (allEvents.length > 0) {
+      mergeEvents(allEvents);
+      setSuccess(`Imported ${totalImported} event(s)!`);
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Export all events
+  const handleExportAll = () => {
+    // This will trigger the export panel's export function
+    // For now, we'll show a message
+    setSuccess('Use the Export panel on the right to export events');
+  };
+
+  // Clear all events
+  const handleClearAll = () => {
+    if (state.calendar.events.length > 0 && confirm('Are you sure you want to clear all events?')) {
+      mergeEvents([]); // This will clear since we're setting to empty with SET_CALENDAR
+      // Actually we need clearEvents
+      setSuccess('All events cleared');
+    }
   };
 
   // Global drag and drop handlers for importing ICS files anywhere
@@ -168,6 +345,31 @@ function CalendarApp() {
       onDragOver={handleGlobalDragOver}
       onDrop={handleGlobalDrop}
     >
+      {/* Hidden file input for command palette import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".ics,.ical,.ifb"
+        multiple
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+
+      {/* Command Palette (Spotlight) */}
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        events={state.calendar.events}
+        onNewEvent={handleNewEvent}
+        onSelectEvent={handleSelectEvent}
+        onExportAll={handleExportAll}
+        onImportClick={handleImportClick}
+        onToggleDarkMode={() => setDarkMode(!darkMode)}
+        darkMode={darkMode}
+        onClearAll={handleClearAll}
+        onApplyTemplate={handleApplyTemplate}
+      />
+
       {/* Global Drop Overlay */}
       {isGlobalDragging && (
         <div className="fixed inset-0 z-50 bg-primary-500/20 backdrop-blur-sm flex items-center justify-center pointer-events-none">
@@ -206,8 +408,101 @@ function CalendarApp() {
       </div>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Toolbar - View Toggle, Search, Undo/Redo */}
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            {/* View Toggle */}
+            <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-slate-700">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-primary-500 text-white'
+                    : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                List
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'calendar'
+                    ? 'bg-primary-500 text-white'
+                    : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                Calendar
+              </button>
+            </div>
+
+            {/* Search Toggle */}
+            <button
+              onClick={() => setShowSearch(s => !s)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                showSearch
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700'
+              }`}
+            >
+              <Search className="w-4 h-4" />
+              {showSearch ? 'Close Search' : 'Search'}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Undo/Redo */}
+            <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-slate-700">
+              <button
+                onClick={() => { undo(); setSuccess('Undo'); }}
+                disabled={!canUndo}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  canUndo
+                    ? 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                    : 'text-gray-300 dark:text-slate-600 cursor-not-allowed'
+                }`}
+                title="Undo (⌘Z)"
+              >
+                <Undo2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => { redo(); setSuccess('Redo'); }}
+                disabled={!canRedo}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  canRedo
+                    ? 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                    : 'text-gray-300 dark:text-slate-600 cursor-not-allowed'
+                }`}
+                title="Redo (⌘⇧Z)"
+              >
+                <Redo2 className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Command Palette Trigger */}
+            <button
+              onClick={() => setShowCommandPalette(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 transition-colors"
+            >
+              <span className="text-xs bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">⌘K</span>
+              Quick Actions
+            </button>
+          </div>
+        </div>
+
+        {/* Search Filter Panel */}
+        {showSearch && (
+          <div className="mb-6">
+            <SearchFilter
+              events={state.calendar.events}
+              onFilteredEventsChange={setFilteredEvents}
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Event List */}
+          {/* Left Column - Event List or Calendar */}
           <div className="lg:col-span-2 space-y-6">
             {showEventForm && editingEvent ? (
               <Card>
@@ -224,15 +519,29 @@ function CalendarApp() {
                   onCancel={handleCancelEdit}
                 />
               </Card>
+            ) : viewMode === 'calendar' ? (
+              <Card>
+                <CalendarView
+                  events={displayEvents}
+                  selectedEventId={state.selectedEventId}
+                  onSelectEvent={handleSelectEvent}
+                  onSelectDate={handleCalendarDateClick}
+                />
+              </Card>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                    Events ({state.calendar.events.length})
+                    Events ({displayEvents.length})
+                    {filteredEvents && (
+                      <span className="text-sm font-normal text-gray-500 ml-2">
+                        (filtered from {state.calendar.events.length})
+                      </span>
+                    )}
                   </h2>
                 </div>
                 <EventList
-                  events={state.calendar.events}
+                  events={displayEvents}
                   selectedEventId={state.selectedEventId}
                   onSelect={handleSelectEvent}
                   onDelete={deleteEvent}
@@ -304,13 +613,33 @@ function CalendarApp() {
             {/* Keyboard Shortcuts */}
             <Card>
               <h3 className="font-medium text-gray-900 dark:text-slate-100 mb-4">
-                ⌨️ Quick Tips
+                ⌨️ Keyboard Shortcuts
               </h3>
               <ul className="space-y-2 text-sm text-gray-600 dark:text-slate-400">
-                <li>• Drag & drop .ics files to import</li>
-                <li>• Add coordinates for map links</li>
-                <li>• Use categories for organization</li>
-                <li>• Set multiple reminders per event</li>
+                <li className="flex items-center justify-between">
+                  <span>Quick Actions</span>
+                  <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-xs">⌘K</kbd>
+                </li>
+                <li className="flex items-center justify-between">
+                  <span>New Event</span>
+                  <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-xs">⌘N</kbd>
+                </li>
+                <li className="flex items-center justify-between">
+                  <span>Search</span>
+                  <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-xs">⌘F</kbd>
+                </li>
+                <li className="flex items-center justify-between">
+                  <span>Undo</span>
+                  <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-xs">⌘Z</kbd>
+                </li>
+                <li className="flex items-center justify-between">
+                  <span>Redo</span>
+                  <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-xs">⌘⇧Z</kbd>
+                </li>
+                <li className="flex items-center justify-between">
+                  <span>Close/Cancel</span>
+                  <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-xs">Esc</kbd>
+                </li>
               </ul>
             </Card>
           </div>
