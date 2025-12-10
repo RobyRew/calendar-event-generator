@@ -13,7 +13,7 @@ import { TemplateSelector, EventTemplate } from '@/components/TemplateSelector';
 import { ExportOptions } from '@/components/ExportOptions';
 import { CalendarEvent } from '@/types';
 import { parseICSFile } from '@/lib';
-import { Undo2, Redo2, Calendar, List, Search } from 'lucide-react';
+import { Undo2, Redo2, Calendar, List, Search, Upload, Download } from 'lucide-react';
 
 function CalendarApp() {
   const { t } = useI18n();
@@ -182,7 +182,12 @@ function CalendarApp() {
 
     const existingEvent = state.calendar.events.find(e => e.uid === editingEvent.uid);
     if (existingEvent) {
-      updateEvent(editingEvent);
+      // Update lastModified when editing
+      const updatedEvent = {
+        ...editingEvent,
+        lastModified: new Date(),
+      };
+      updateEvent(updatedEvent);
       setSuccess('Event updated successfully!');
     } else {
       addEvent(editingEvent);
@@ -206,6 +211,8 @@ function CalendarApp() {
       summary: `${event.summary} (Copy)`,
       created: new Date(),
       lastModified: new Date(),
+      // Clear sourceFile for duplicated events - it's a new event
+      sourceFile: undefined,
     };
     addEvent(duplicated);
     setSuccess('Event duplicated!');
@@ -501,6 +508,30 @@ function CalendarApp() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Quick Action Buttons */}
+            <button
+              onClick={handleImportClick}
+              className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 transition-colors"
+              title="Import ICS files"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Import</span>
+            </button>
+            
+            <button
+              onClick={() => setShowExportOptions(true)}
+              disabled={state.calendar.events.length === 0}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors border ${
+                state.calendar.events.length === 0
+                  ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-600 border-gray-200 dark:border-slate-700 cursor-not-allowed'
+                  : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 border-gray-200 dark:border-slate-700'
+              }`}
+              title="Export events"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+
             {/* Undo/Redo */}
             <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-slate-700">
               <button
@@ -535,7 +566,7 @@ function CalendarApp() {
               className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 transition-colors"
             >
               <span className="text-xs bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">⌘K</span>
-              Quick Actions
+              <span className="hidden sm:inline">Quick Actions</span>
             </button>
           </div>
         </div>

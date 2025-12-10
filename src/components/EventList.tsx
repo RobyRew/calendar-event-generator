@@ -3,10 +3,9 @@
  * Displays a list of calendar events with actions
  */
 
-import React from 'react';
 import { CalendarEvent } from '@/types';
 import { Card, Button, Badge } from '@/components/ui';
-import { Calendar, Clock, MapPin, Repeat, Bell, Trash2, Edit, Copy, FileText } from 'lucide-react';
+import { Calendar, Clock, MapPin, Repeat, Bell, Trash2, Edit, Copy, FileText, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface EventListProps {
@@ -47,9 +46,22 @@ export function EventList({ events, selectedEventId, onSelect, onDelete, onDupli
     return `${format(event.startDate, 'MMM d, HH:mm')} - ${format(event.endDate, 'MMM d, HH:mm, yyyy')}`;
   };
 
+  // Check if event was modified from its source
+  const isEventModified = (event: CalendarEvent): boolean => {
+    if (!event.sourceFile) return false;
+    // Event is considered modified if lastModified > created
+    if (event.lastModified && event.created) {
+      return event.lastModified.getTime() > event.created.getTime() + 1000; // 1 second tolerance
+    }
+    return false;
+  };
+
   return (
     <div className="space-y-3">
-      {events.map((event) => (
+      {events.map((event) => {
+        const modified = isEventModified(event);
+        
+        return (
         <Card
           key={event.uid}
           padding="none"
@@ -111,11 +123,19 @@ export function EventList({ events, selectedEventId, onSelect, onDelete, onDupli
               </div>
             )}
 
-            {/* Source file indicator */}
+            {/* Source file indicator with modification status */}
             {event.sourceFile && (
-              <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-400 dark:text-slate-500">
-                <FileText className="w-3 h-3" />
-                <span className="truncate">From: {event.sourceFile}</span>
+              <div className="flex items-center gap-1.5 mt-2 text-xs">
+                <FileText className="w-3 h-3 text-gray-400 dark:text-slate-500" />
+                <span className="text-gray-400 dark:text-slate-500 truncate">
+                  From: {event.sourceFile}
+                </span>
+                {modified && (
+                  <span className="flex items-center gap-1 text-amber-500 dark:text-amber-400">
+                    <AlertCircle className="w-3 h-3" />
+                    Modified
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -158,7 +178,8 @@ export function EventList({ events, selectedEventId, onSelect, onDelete, onDupli
             </Button>
           </div>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }

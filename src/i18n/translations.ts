@@ -67,6 +67,15 @@ export interface Translations {
   templateDeleted: string;
   customTemplates: string;
   builtInTemplates: string;
+  selectTemplate: string;
+  createEvent: string;
+  blank: string;
+  modified: string;
+  fromFile: string;
+  expandAll: string;
+  collapseAll: string;
+  verticalLayout: string;
+  tabLayout: string;
   
   // Template Names
   templateMeeting: string;
@@ -236,6 +245,15 @@ export const en: Translations = {
   templateDeleted: 'Template deleted',
   customTemplates: 'Custom Templates',
   builtInTemplates: 'Built-in Templates',
+  selectTemplate: 'Select a template...',
+  createEvent: 'Create from Template',
+  blank: 'Blank',
+  modified: 'Modified',
+  fromFile: 'From:',
+  expandAll: 'Expand All',
+  collapseAll: 'Collapse All',
+  verticalLayout: 'Vertical Layout',
+  tabLayout: 'Tab Layout',
   
   templateMeeting: 'Meeting',
   templateCall: 'Phone Call',
@@ -394,6 +412,15 @@ export const es: Translations = {
   templateDeleted: 'Plantilla eliminada',
   customTemplates: 'Plantillas Personalizadas',
   builtInTemplates: 'Plantillas Predefinidas',
+  selectTemplate: 'Seleccionar plantilla...',
+  createEvent: 'Crear desde Plantilla',
+  blank: 'En Blanco',
+  modified: 'Modificado',
+  fromFile: 'De:',
+  expandAll: 'Expandir Todo',
+  collapseAll: 'Colapsar Todo',
+  verticalLayout: 'Vista Vertical',
+  tabLayout: 'Vista Pestañas',
   
   templateMeeting: 'Reunión',
   templateCall: 'Llamada',
@@ -552,6 +579,15 @@ export const de: Translations = {
   templateDeleted: 'Vorlage gelöscht',
   customTemplates: 'Eigene Vorlagen',
   builtInTemplates: 'Eingebaute Vorlagen',
+  selectTemplate: 'Vorlage auswählen...',
+  createEvent: 'Aus Vorlage erstellen',
+  blank: 'Leer',
+  modified: 'Geändert',
+  fromFile: 'Von:',
+  expandAll: 'Alle ausklappen',
+  collapseAll: 'Alle einklappen',
+  verticalLayout: 'Vertikale Ansicht',
+  tabLayout: 'Tab-Ansicht',
   
   templateMeeting: 'Besprechung',
   templateCall: 'Telefonat',
@@ -710,6 +746,15 @@ export const fr: Translations = {
   templateDeleted: 'Modèle supprimé',
   customTemplates: 'Modèles Personnalisés',
   builtInTemplates: 'Modèles Intégrés',
+  selectTemplate: 'Sélectionner un modèle...',
+  createEvent: 'Créer depuis le Modèle',
+  blank: 'Vide',
+  modified: 'Modifié',
+  fromFile: 'De:',
+  expandAll: 'Tout Développer',
+  collapseAll: 'Tout Réduire',
+  verticalLayout: 'Vue Verticale',
+  tabLayout: 'Vue Onglets',
   
   templateMeeting: 'Réunion',
   templateCall: 'Appel Téléphonique',
