@@ -525,40 +525,10 @@ function CalendarApp() {
               </button>
             </div>
 
-            {/* Feature Pills */}
-            <div className="mt-12 flex flex-wrap justify-center gap-2 max-w-lg">
-              {[
-                { icon: '🍎', label: 'Apple Calendar' },
-                { icon: '📅', label: 'Google Calendar' },
-                { icon: '📧', label: 'Outlook' },
-                { icon: '🔄', label: t.recurringEvents?.split(' ')[0] || 'Recurring' },
-              ].map((feature, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[rgb(var(--accent))] rounded-full text-xs font-medium text-[rgb(var(--muted-foreground))]"
-                >
-                  <span>{feature.icon}</span>
-                  {feature.label}
-                </span>
-              ))}
-            </div>
-
-            {/* Service Info Card */}
-            <div className="mt-8 p-4 bg-[rgb(var(--card))] rounded-2xl border border-[rgb(var(--border))] max-w-md w-full">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[rgb(var(--accent))] flex items-center justify-center shrink-0">
-                  <Calendar className="w-5 h-5 text-[rgb(var(--primary))]" />
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="font-medium text-sm text-[rgb(var(--foreground))]">
-                    {t.universalCalendarSupport}
-                  </p>
-                  <p className="text-xs text-[rgb(var(--muted-foreground))] mt-0.5">
-                    {t.serviceDescription}
-                  </p>
-                </div>
-              </div>
-            </div>
+            {/* Subtle Platform Support Text */}
+            <p className="mt-10 text-xs text-[rgb(var(--muted-foreground))]">
+              Works with Apple Calendar • Google Calendar • Outlook
+            </p>
           </div>
         )}
 
