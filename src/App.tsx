@@ -613,22 +613,41 @@ function CalendarApp() {
                 onDuplicate={handleDuplicateEvent}
               />
             ) : (
-              <Card className="text-center py-16">
-                <Calendar className="w-16 h-16 mx-auto text-[rgb(var(--muted-foreground)/0.3)] mb-4" />
-                <h3 className="text-xl font-semibold text-[rgb(var(--foreground))] mb-2">
-                  {t.noEvents}
-                </h3>
-                <p className="text-[rgb(var(--muted-foreground))] mb-6 max-w-sm mx-auto">
-                  {t.createFirstEvent}
-                </p>
-                <button
-                  onClick={() => setShowNewEventModal(true)}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-xl hover:opacity-90 transition-opacity font-medium"
-                >
-                  <Plus className="w-5 h-5" />
-                  {t.newEvent}
-                </button>
-              </Card>
+              <div className="space-y-4">
+                <Card className="text-center py-16">
+                  <Calendar className="w-16 h-16 mx-auto text-[rgb(var(--muted-foreground)/0.3)] mb-4" />
+                  <h3 className="text-xl font-semibold text-[rgb(var(--foreground))] mb-2">
+                    {t.noEvents}
+                  </h3>
+                  <p className="text-[rgb(var(--muted-foreground))] mb-6 max-w-sm mx-auto">
+                    {t.createFirstEvent}
+                  </p>
+                  <button
+                    onClick={() => setShowNewEventModal(true)}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-xl hover:opacity-90 transition-opacity font-medium"
+                  >
+                    <Plus className="w-5 h-5" />
+                    {t.newEvent}
+                  </button>
+                </Card>
+
+                {/* Service Info */}
+                <div className="p-4 bg-[rgb(var(--accent))] rounded-xl border border-[rgb(var(--border))]">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[rgb(var(--primary))] flex items-center justify-center shrink-0">
+                      <Calendar className="w-5 h-5 text-[rgb(var(--primary-foreground))]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-[rgb(var(--foreground))]">
+                        {t.universalCalendarSupport}
+                      </p>
+                      <p className="text-xs text-[rgb(var(--muted-foreground))] mt-1">
+                        {t.serviceDescription}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
