@@ -2,50 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: 255 255 255;
-  --foreground: 15 23 42;
-  --card: 255 255 255;
-  --card-foreground: 15 23 42;
-  --popover: 255 255 255;
-  --popover-foreground: 15 23 42;
-  --primary: 14 165 233;
-  --primary-foreground: 255 255 255;
-  --secondary: 241 245 249;
-  --secondary-foreground: 15 23 42;
-  --muted: 241 245 249;
-  --muted-foreground: 100 116 139;
-  --accent: 241 245 249;
-  --accent-foreground: 15 23 42;
-  --destructive: 239 68 68;
-  --destructive-foreground: 255 255 255;
-  --border: 226 232 240;
-  --input: 226 232 240;
-  --ring: 14 165 233;
-  --radius: 0.5rem;
-}
-
-.dark {
-  --background: 15 23 42;
-  --foreground: 248 250 252;
-  --card: 30 41 59;
-  --card-foreground: 248 250 252;
-  --popover: 30 41 59;
-  --popover-foreground: 248 250 252;
-  --primary: 56 189 248;
-  --primary-foreground: 15 23 42;
-  --secondary: 51 65 85;
-  --secondary-foreground: 248 250 252;
-  --muted: 51 65 85;
-  --muted-foreground: 148 163 184;
-  --accent: 51 65 85;
-  --accent-foreground: 248 250 252;
-  --destructive: 239 68 68;
-  --destructive-foreground: 255 255 255;
-  --border: 51 65 85;
-  --input: 51 65 85;
-  --ring: 56 189 248;
-}
+/* ============================================
+   BASE STYLES
+   ============================================ */
 
 * {
   box-sizing: border-box;
@@ -63,9 +22,13 @@ body {
   color: rgb(var(--foreground));
   min-height: 100vh;
   line-height: 1.6;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Custom scrollbar */
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -85,7 +48,10 @@ body {
   background: rgb(var(--foreground) / 0.5);
 }
 
-/* Input focus styles */
+/* ============================================
+   FORM ELEMENTS
+   ============================================ */
+
 input:focus,
 textarea:focus,
 select:focus {
@@ -93,34 +59,173 @@ select:focus {
   box-shadow: 0 0 0 2px rgb(var(--ring) / 0.5);
 }
 
-/* Custom checkbox */
 input[type="checkbox"] {
   accent-color: rgb(var(--primary));
 }
 
-/* Transitions */
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
 .transition-base {
   transition: all 0.2s ease-in-out;
 }
 
-/* Glass effect */
+.transition-theme {
+  transition: 
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+/* Glass effect utility */
 .glass {
-  background: rgb(var(--card) / 0.8);
+  background: rgb(var(--card) / var(--glass-opacity, 0.8));
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgb(var(--border) / 0.5);
 }
 
-/* Gradient backgrounds */
+/* ============================================
+   GRADIENT BACKGROUNDS
+   ============================================ */
+
 .gradient-primary {
   background: linear-gradient(135deg, rgb(var(--primary)) 0%, rgb(var(--primary) / 0.8) 100%);
 }
 
+/* Default gradient mesh (overridden by themes) */
 .gradient-mesh {
-  background: 
-    radial-gradient(at 40% 20%, rgb(14 165 233 / 0.3) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, rgb(99 102 241 / 0.2) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, rgb(168 85 247 / 0.2) 0px, transparent 50%),
-    radial-gradient(at 80% 50%, rgb(20 184 166 / 0.2) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgb(251 146 60 / 0.2) 0px, transparent 50%),
-    rgb(var(--background));
+  background: rgb(var(--background));
+  transition: background 0.5s ease;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height, auto);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgb(var(--primary) / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgb(var(--primary) / 0.5);
+  }
+}
+
+/* Animation classes */
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
+
+.animate-accordion-down {
+  animation: accordion-down 0.2s ease-out;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--muted)) 0%,
+    rgb(var(--muted-foreground) / 0.1) 50%,
+    rgb(var(--muted)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ============================================
+   FOCUS RING UTILITY (for accessibility)
+   ============================================ */
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--background)), 0 0 0 4px rgb(var(--primary) / 0.5);
+}
+
+/* ============================================
+   SELECT DROPDOWN ARROW (consistent across browsers)
+   ============================================ */
+select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
 }
