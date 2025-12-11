@@ -1,0 +1,75 @@
+/**
+ * OLED Theme - Pure Black
+ * Maximum contrast for AMOLED screens, saves battery
+ */
+
+.theme-oled {
+  /* Base colors - Pure black */
+  --background: 0 0 0;
+  --foreground: 250 250 250;
+  
+  /* Card / Surfaces - Near black */
+  --card: 8 8 8;
+  --card-foreground: 250 250 250;
+  
+  /* Popover */
+  --popover: 12 12 12;
+  --popover-foreground: 250 250 250;
+  
+  /* Primary - Vivid cyan for visibility */
+  --primary: 56 189 248;
+  --primary-foreground: 0 0 0;
+  
+  /* Secondary */
+  --secondary: 18 18 18;
+  --secondary-foreground: 212 212 212;
+  
+  /* Muted */
+  --muted: 22 22 22;
+  --muted-foreground: 140 140 140;
+  
+  /* Accent */
+  --accent: 28 28 28;
+  --accent-foreground: 250 250 250;
+  
+  /* Destructive */
+  --destructive: 239 68 68;
+  --destructive-foreground: 0 0 0;
+  
+  /* Border & Input - Very subtle */
+  --border: 32 32 32;
+  --input: 22 22 22;
+  --ring: 56 189 248;
+  
+  /* Shadows */
+  --shadow-color: 0 0 0;
+  --shadow-opacity: 0.6;
+  
+  /* Special */
+  --radius: 0.5rem;
+  --glass-opacity: 0.9;
+}
+
+/* OLED theme gradient background - minimal */
+.theme-oled .gradient-mesh {
+  background: 
+    radial-gradient(ellipse at 50% 0%, rgb(56 189 248 / 0.06) 0px, transparent 40%),
+    rgb(0 0 0);
+}
+
+/* OLED theme - no shadows, use borders */
+.theme-oled .card-elevated {
+  box-shadow: none;
+  border: 1px solid rgb(32 32 32);
+}
+
+/* OLED interactive elements - glow effect */
+.theme-oled .interactive-glow:hover {
+  box-shadow: 0 0 20px rgb(56 189 248 / 0.15);
+}
+
+/* OLED theme - crisp text */
+.theme-oled {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

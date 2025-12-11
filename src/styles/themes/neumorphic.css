@@ -1,0 +1,134 @@
+/**
+ * Neumorphic Theme - Soft UI
+ * Soft shadows creating depth and tactile feel
+ */
+
+.theme-neumorphic {
+  /* Base colors - Soft gray base */
+  --background: 230 230 235;
+  --foreground: 55 65 81;
+  
+  /* Card / Surfaces */
+  --card: 230 230 235;
+  --card-foreground: 55 65 81;
+  
+  /* Popover */
+  --popover: 235 235 240;
+  --popover-foreground: 55 65 81;
+  
+  /* Primary - Muted blue */
+  --primary: 79 70 229;
+  --primary-foreground: 255 255 255;
+  
+  /* Secondary */
+  --secondary: 220 220 228;
+  --secondary-foreground: 55 65 81;
+  
+  /* Muted */
+  --muted: 215 215 225;
+  --muted-foreground: 107 114 128;
+  
+  /* Accent */
+  --accent: 225 225 232;
+  --accent-foreground: 79 70 229;
+  
+  /* Destructive */
+  --destructive: 220 38 38;
+  --destructive-foreground: 255 255 255;
+  
+  /* Border & Input */
+  --border: 215 215 225;
+  --input: 220 220 228;
+  --ring: 79 70 229;
+  
+  /* Neumorphic specific */
+  --neu-light: 255 255 255;
+  --neu-dark: 190 190 200;
+  --neu-intensity: 1;
+  
+  /* Special */
+  --radius: 1rem;
+  --glass-opacity: 0.6;
+}
+
+/* Neumorphic gradient background */
+.theme-neumorphic .gradient-mesh {
+  background: 
+    linear-gradient(145deg, rgb(235 235 240) 0%, rgb(225 225 232) 100%);
+}
+
+/* Neumorphic elevated card - convex */
+.theme-neumorphic .card-elevated,
+.theme-neumorphic .neu-convex {
+  background: linear-gradient(145deg, rgb(240 240 245), rgb(220 220 228));
+  box-shadow: 
+    8px 8px 16px rgb(190 190 200 / 0.7),
+    -8px -8px 16px rgb(255 255 255 / 0.8);
+  border: none;
+}
+
+/* Neumorphic pressed/concave */
+.theme-neumorphic .neu-concave {
+  background: linear-gradient(145deg, rgb(220 220 228), rgb(235 235 240));
+  box-shadow: 
+    inset 4px 4px 8px rgb(190 190 200 / 0.6),
+    inset -4px -4px 8px rgb(255 255 255 / 0.7);
+}
+
+/* Neumorphic flat */
+.theme-neumorphic .neu-flat {
+  background: rgb(230 230 235);
+  box-shadow: 
+    4px 4px 8px rgb(190 190 200 / 0.5),
+    -4px -4px 8px rgb(255 255 255 / 0.6);
+}
+
+/* Neumorphic button states */
+.theme-neumorphic .neu-button {
+  background: linear-gradient(145deg, rgb(238 238 243), rgb(222 222 230));
+  box-shadow: 
+    6px 6px 12px rgb(190 190 200 / 0.6),
+    -6px -6px 12px rgb(255 255 255 / 0.7);
+  transition: all 0.2s ease;
+}
+
+.theme-neumorphic .neu-button:hover {
+  box-shadow: 
+    8px 8px 16px rgb(190 190 200 / 0.7),
+    -8px -8px 16px rgb(255 255 255 / 0.8);
+}
+
+.theme-neumorphic .neu-button:active {
+  box-shadow: 
+    inset 4px 4px 8px rgb(190 190 200 / 0.5),
+    inset -4px -4px 8px rgb(255 255 255 / 0.6);
+}
+
+/* Neumorphic inputs */
+.theme-neumorphic input,
+.theme-neumorphic textarea,
+.theme-neumorphic select {
+  background: rgb(230 230 235);
+  box-shadow: 
+    inset 3px 3px 6px rgb(190 190 200 / 0.5),
+    inset -3px -3px 6px rgb(255 255 255 / 0.6);
+  border: none;
+}
+
+.theme-neumorphic input:focus,
+.theme-neumorphic textarea:focus,
+.theme-neumorphic select:focus {
+  box-shadow: 
+    inset 3px 3px 6px rgb(190 190 200 / 0.5),
+    inset -3px -3px 6px rgb(255 255 255 / 0.6),
+    0 0 0 2px rgb(79 70 229 / 0.3);
+}
+
+/* Neumorphic circular elements */
+.theme-neumorphic .neu-circle {
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgb(238 238 243), rgb(222 222 230));
+  box-shadow: 
+    6px 6px 12px rgb(190 190 200 / 0.6),
+    -6px -6px 12px rgb(255 255 255 / 0.7);
+}
