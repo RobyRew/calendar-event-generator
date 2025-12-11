@@ -18,7 +18,6 @@ import {
   Moon,
   Smartphone,
   Layers,
-  Droplets,
   FileText,
   Tag,
   Command
@@ -56,7 +55,6 @@ const getThemeIcon = (themeId: ThemeId): React.ReactNode => {
     case 'dark': return <Moon className="w-4 h-4" />;
     case 'oled': return <Smartphone className="w-4 h-4" />;
     case 'neumorphic': return <Layers className="w-4 h-4" />;
-    case 'glass': return <Droplets className="w-4 h-4" />;
   }
 };
 

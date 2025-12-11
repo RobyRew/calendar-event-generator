@@ -2,7 +2,7 @@
  * Theme System - Central exports and types
  */
 
-export type ThemeId = 'light' | 'dark' | 'oled' | 'neumorphic' | 'glass';
+export type ThemeId = 'light' | 'dark' | 'oled' | 'neumorphic';
 
 export interface ThemeConfig {
   id: ThemeId;
@@ -40,13 +40,6 @@ export const THEMES: ThemeConfig[] = [
     description: 'Soft UI with depth',
     icon: 'Layers',
     className: 'theme-neumorphic',
-  },
-  {
-    id: 'glass',
-    name: 'Liquid Glass',
-    description: 'Frosted glass effects',
-    icon: 'Droplets',
-    className: 'theme-glass',
   },
 ];
 

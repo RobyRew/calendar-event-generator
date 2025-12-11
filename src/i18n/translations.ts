@@ -163,6 +163,17 @@ export interface Translations {
   createFirstEvent: string;
   allEventsCleared: string;
   
+  // Settings Panel
+  appearance: string;
+  data: string;
+  localStorage: string;
+  clearAllData: string;
+  clearDataDescription: string;
+  confirmClearData: string;
+  clearDataWarning: string;
+  about: string;
+  version: string;
+  
   // Sidebar
   selectedEvent: string;
   shortcuts: string;

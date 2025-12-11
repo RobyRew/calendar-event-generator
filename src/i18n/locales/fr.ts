@@ -161,6 +161,17 @@ export const fr: Translations = {
   createFirstEvent: 'Créez votre premier événement ou importez des événements existants depuis un fichier ICS',
   allEventsCleared: 'Tous les événements supprimés',
   
+  // Settings Panel
+  appearance: 'Apparence',
+  data: 'Données',
+  localStorage: 'Stockage Local',
+  clearAllData: 'Effacer Toutes les Données',
+  clearDataDescription: 'Supprimer tous les événements et réinitialiser l\'app',
+  confirmClearData: 'Êtes-vous sûr?',
+  clearDataWarning: 'Cela supprimera définitivement tous vos événements. Cette action ne peut pas être annulée.',
+  about: 'À propos',
+  version: 'Version',
+  
   // Sidebar
   selectedEvent: 'Événement Sélectionné',
   shortcuts: 'Raccourcis',

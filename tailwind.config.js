@@ -9,6 +9,9 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      screens: {
+        'xs': '480px', // Extra small breakpoint for better mobile support
+      },
       colors: {
         primary: {
           50: '#f0f9ff',

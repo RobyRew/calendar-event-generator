@@ -161,6 +161,17 @@ export const es: Translations = {
   createFirstEvent: 'Crea tu primer evento de calendario o importa eventos existentes desde un archivo ICS',
   allEventsCleared: 'Todos los eventos eliminados',
   
+  // Settings Panel
+  appearance: 'Apariencia',
+  data: 'Datos',
+  localStorage: 'Almacenamiento Local',
+  clearAllData: 'Borrar Todos los Datos',
+  clearDataDescription: 'Eliminar todos los eventos y reiniciar la app',
+  confirmClearData: '¿Estás seguro?',
+  clearDataWarning: 'Esto eliminará permanentemente todos tus eventos. Esta acción no se puede deshacer.',
+  about: 'Acerca de',
+  version: 'Versión',
+  
   // Sidebar
   selectedEvent: 'Evento Seleccionado',
   shortcuts: 'Atajos',

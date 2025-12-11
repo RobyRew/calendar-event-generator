@@ -161,6 +161,17 @@ export const de: Translations = {
   createFirstEvent: 'Erstellen Sie Ihr erstes Kalender-Event oder importieren Sie vorhandene Events aus einer ICS-Datei',
   allEventsCleared: 'Alle Events gelöscht',
   
+  // Settings Panel
+  appearance: 'Darstellung',
+  data: 'Daten',
+  localStorage: 'Lokaler Speicher',
+  clearAllData: 'Alle Daten löschen',
+  clearDataDescription: 'Alle Events löschen und App zurücksetzen',
+  confirmClearData: 'Sind Sie sicher?',
+  clearDataWarning: 'Dadurch werden alle Ihre Events dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.',
+  about: 'Über',
+  version: 'Version',
+  
   // Sidebar
   selectedEvent: 'Ausgewähltes Event',
   shortcuts: 'Tastenkürzel',

@@ -4,7 +4,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Check, ChevronDown, Sun, Moon, Smartphone, Layers, Droplets } from 'lucide-react';
+import { Check, ChevronDown, Sun, Moon, Smartphone, Layers } from 'lucide-react';
 import { ThemeId, THEMES, getThemeConfig } from '@/styles/themes';
 import { useI18n } from '@/context/I18nContext';
 
@@ -21,7 +21,6 @@ const THEME_ICONS: Record<ThemeId, React.ReactNode> = {
   dark: <Moon className="w-4 h-4" />,
   oled: <Smartphone className="w-4 h-4" />,
   neumorphic: <Layers className="w-4 h-4" />,
-  glass: <Droplets className="w-4 h-4" />,
 };
 
 export function ThemeSelector({ theme, onChangeTheme, className = '', compact = false }: ThemeSelectorProps) {

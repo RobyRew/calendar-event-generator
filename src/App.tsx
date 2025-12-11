@@ -5,19 +5,19 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { CalendarProvider, useCalendar, useI18n } from '@/context';
-import { Header, EventList, Card, Alert } from '@/components';
+import { Header, EventList, Card, Alert, Settings } from '@/components';
 import { EventForm as EventFormAccordion } from '@/components/EventFormAccordion';
 import { CalendarView } from '@/components/CalendarView';
 import { CommandPalette } from '@/components/CommandPalette';
 import { NewEventModal, EventTemplate } from '@/components/NewEventModal';
 import { ExportOptions } from '@/components/ExportOptions';
 import { CalendarEvent } from '@/types';
-import { parseICSFile, generateEventICS, downloadICS } from '@/lib';
-import { Undo2, Redo2, Calendar, List, Search, Download, Plus, X, FileText } from 'lucide-react';
+import { parseICSFile, generateEventICS, downloadICS, saveEvents, loadEvents, saveSettings, loadSettings, clearAllData, getStorageInfo } from '@/lib';
+import { Undo2, Redo2, Calendar, List, Search, Download, Plus, X, FileText, Settings as SettingsIcon } from 'lucide-react';
 import { ThemeId, THEMES } from '@/styles/themes';
 
 function CalendarApp() {
-  const { t } = useI18n();
+  const { t, setLanguage, language } = useI18n();
   const [theme, setTheme] = useState<ThemeId>('light');
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
@@ -26,7 +26,10 @@ function CalendarApp() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [showNewEventModal, setShowNewEventModal] = useState(false);
   const [showExportOptions, setShowExportOptions] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [storageInfo, setStorageInfo] = useState({ used: '0 B', eventCount: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialLoadDone = useRef(false);
 
   const {
     state,
@@ -38,17 +41,49 @@ function CalendarApp() {
     createNewEvent,
     setError,
     setSuccess,
+    clearEvents,
     undo,
     redo,
     canUndo,
     canRedo,
   } = useCalendar();
 
-  // Initialize theme from system preference
+  // Load saved settings and events on mount
   useEffect(() => {
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setTheme(isDark ? 'dark' : 'light');
-  }, []);
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+    
+    const settings = loadSettings();
+    setTheme(settings.theme as ThemeId || 'light');
+    setViewMode(settings.viewMode || 'list');
+    if (settings.language) {
+      setLanguage(settings.language as 'en' | 'es' | 'de' | 'fr');
+    }
+    
+    // Load saved events
+    const savedEvents = loadEvents();
+    if (savedEvents.length > 0) {
+      mergeEvents(savedEvents);
+    }
+    
+    // Update storage info
+    setStorageInfo(getStorageInfo());
+  }, [mergeEvents, setLanguage]);
+
+  // Save events whenever they change
+  useEffect(() => {
+    if (initialLoadDone.current && state.calendar.events.length >= 0) {
+      saveEvents(state.calendar.events);
+      setStorageInfo(getStorageInfo());
+    }
+  }, [state.calendar.events]);
+
+  // Save settings whenever theme, language, or viewMode changes
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      saveSettings({ theme, language, viewMode });
+    }
+  }, [theme, language, viewMode]);
 
   // Apply theme class
   useEffect(() => {
@@ -64,6 +99,20 @@ function CalendarApp() {
   // Theme change handler
   const handleThemeChange = (newTheme: ThemeId) => {
     setTheme(newTheme);
+  };
+
+  // Language change handler
+  const handleLanguageChange = (newLang: string) => {
+    setLanguage(newLang as 'en' | 'es' | 'de' | 'fr');
+  };
+
+  // Clear all data handler
+  const handleClearData = () => {
+    clearAllData();
+    clearEvents();
+    setStorageInfo({ used: '0 B', eventCount: 0 });
+    setSuccess(t.allEventsCleared || 'All data cleared');
+    setShowSettings(false);
   };
 
   // Keyboard shortcuts
@@ -378,6 +427,18 @@ function CalendarApp() {
         />
       )}
 
+      <Settings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        theme={theme}
+        onChangeTheme={handleThemeChange}
+        language={language}
+        onChangeLanguage={handleLanguageChange}
+        onClearData={handleClearData}
+        storageUsed={storageInfo.used}
+        eventCount={storageInfo.eventCount}
+      />
+
       <CommandPalette
         isOpen={showCommandPalette}
         onClose={() => setShowCommandPalette(false)}
@@ -501,6 +562,14 @@ function CalendarApp() {
             >
               <Search className="w-4 h-4" />
               <kbd className="hidden sm:inline text-xs bg-[rgb(var(--accent))] px-1.5 py-0.5 rounded">⌘K</kbd>
+            </button>
+
+            <button
+              onClick={() => setShowSettings(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--card))] rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))] border border-[rgb(var(--border))] transition-colors"
+              title={t.settings}
+            >
+              <SettingsIcon className="w-4 h-4" />
             </button>
           </div>
         </div>
