@@ -345,7 +345,7 @@ function CalendarApp() {
 
   return (
     <div 
-      className={`min-h-screen gradient-mesh ${theme !== 'light' ? theme : ''}`}
+      className={`min-h-screen min-h-[100dvh] gradient-mesh ${theme !== 'light' ? theme : ''}`}
       onDragEnter={handleGlobalDragEnter}
       onDragLeave={handleGlobalDragLeave}
       onDragOver={handleGlobalDragOver}
@@ -640,10 +640,10 @@ function CalendarApp() {
         </div>
       </main>
 
-      <div className="fixed bottom-4 right-4 sm:hidden z-40">
+      <div className="fixed bottom-4 right-4 sm:hidden z-40 safe-area-bottom">
         <button
           onClick={() => setShowNewEventModal(true)}
-          className="w-14 h-14 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-full shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center"
+          className="w-14 h-14 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-full shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center touch-manipulation"
         >
           <Plus className="w-6 h-6" />
         </button>
@@ -652,7 +652,7 @@ function CalendarApp() {
       <div className="hidden sm:block fixed bottom-6 right-6 z-40">
         <button
           onClick={() => setShowNewEventModal(true)}
-          className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-xl shadow-lg hover:opacity-90 active:scale-95 transition-all font-medium"
+          className="flex items-center gap-2 px-5 py-3 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-xl shadow-lg hover:opacity-90 active:scale-95 transition-all font-medium touch-manipulation"
         >
           <Plus className="w-5 h-5" />
           {t.newEvent}

@@ -16,8 +16,8 @@
   --popover: 235 235 240;
   --popover-foreground: 55 65 81;
   
-  /* Primary - Muted blue */
-  --primary: 79 70 229;
+  /* Primary - Dark gray */
+  --primary: 64 64 64;
   --primary-foreground: 255 255 255;
   
   /* Secondary */
@@ -30,7 +30,7 @@
   
   /* Accent */
   --accent: 225 225 232;
-  --accent-foreground: 79 70 229;
+  --accent-foreground: 64 64 64;
   
   /* Destructive */
   --destructive: 220 38 38;
@@ -39,7 +39,7 @@
   /* Border & Input */
   --border: 215 215 225;
   --input: 220 220 228;
-  --ring: 79 70 229;
+  --ring: 100 100 100;
   
   /* Neumorphic specific */
   --neu-light: 255 255 255;

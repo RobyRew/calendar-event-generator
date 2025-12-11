@@ -42,16 +42,16 @@ interface CalendarViewProps {
   onSelectDate: (date: Date) => void;
 }
 
-// Event color based on color property or default
+// Event color based on color property or default - grayscale palette
 const getEventColor = (event: CalendarEvent): string => {
   if (event.color) return event.color;
-  // Default colors based on categories or status
-  if (event.categories?.includes('Work')) return 'bg-blue-500';
-  if (event.categories?.includes('Personal')) return 'bg-green-500';
-  if (event.categories?.includes('Meeting')) return 'bg-purple-500';
-  if (event.status === 'TENTATIVE') return 'bg-yellow-500';
-  if (event.status === 'CANCELLED') return 'bg-red-500';
-  return 'bg-primary-500';
+  // Default colors based on categories or status - using grayscale
+  if (event.categories?.includes('Work')) return 'bg-neutral-700';
+  if (event.categories?.includes('Personal')) return 'bg-neutral-500';
+  if (event.categories?.includes('Meeting')) return 'bg-neutral-600';
+  if (event.status === 'TENTATIVE') return 'bg-neutral-400';
+  if (event.status === 'CANCELLED') return 'bg-neutral-300';
+  return 'bg-[rgb(var(--primary))]';
 };
 
 export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectDate }: CalendarViewProps) {
@@ -246,7 +246,7 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
                         </div>
                       ))}
                       {dayEvents.length > 3 && (
-                        <div className="text-xs text-gray-500 dark:text-slate-400 px-1">
+                        <div className="text-xs text-[rgb(var(--muted-foreground))] px-1">
                           +{dayEvents.length - 3} more
                         </div>
                       )}
@@ -263,10 +263,10 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
           <div className="overflow-auto max-h-[600px]">
             <div className="grid grid-cols-8 min-w-[800px]">
               {/* Time column */}
-              <div className="sticky left-0 bg-white dark:bg-slate-800 z-10">
-                <div className="h-12 border-b border-gray-200 dark:border-slate-700" />
+              <div className="sticky left-0 bg-[rgb(var(--card))] z-10">
+                <div className="h-12 border-b border-[rgb(var(--border))]" />
                 {hours.map(hour => (
-                  <div key={hour} className="h-12 text-xs text-gray-500 dark:text-slate-400 pr-2 text-right">
+                  <div key={hour} className="h-12 text-xs text-[rgb(var(--muted-foreground))] pr-2 text-right">
                     {format(new Date().setHours(hour, 0), 'ha')}
                   </div>
                 ))}
@@ -276,22 +276,22 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
               {weekDays.map(day => {
                 const dayEvents = getEventsForDay(day);
                 return (
-                  <div key={day.toISOString()} className="border-l border-gray-200 dark:border-slate-700">
+                  <div key={day.toISOString()} className="border-l border-[rgb(var(--border))]">
                     {/* Day header */}
                     <div 
                       onClick={() => onSelectDate(day)}
                       className={`
-                        h-12 flex flex-col items-center justify-center border-b border-gray-200 dark:border-slate-700
-                        cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700
+                        h-12 flex flex-col items-center justify-center border-b border-[rgb(var(--border))]
+                        cursor-pointer hover:bg-[rgb(var(--accent))]
                         ${isToday(day) ? 'bg-primary-50 dark:bg-primary-900/20' : ''}
                       `}
                     >
-                      <span className="text-xs text-gray-500 dark:text-slate-400">
+                      <span className="text-xs text-[rgb(var(--muted-foreground))]">
                         {format(day, 'EEE')}
                       </span>
                       <span className={`
                         text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full
-                        ${isToday(day) ? 'bg-primary-500 text-white' : 'text-gray-900 dark:text-white'}
+                        ${isToday(day) ? 'bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))]' : 'text-[rgb(var(--foreground))]'}
                       `}>
                         {format(day, 'd')}
                       </span>
@@ -302,7 +302,7 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
                       {hours.map(hour => (
                         <div 
                           key={hour} 
-                          className="h-12 border-b border-gray-100 dark:border-slate-700/50"
+                          className="h-12 border-b border-[rgb(var(--border)/0.5)]"
                         />
                       ))}
                       
@@ -348,20 +348,20 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
           <div className="overflow-auto max-h-[600px]">
             <div className="grid grid-cols-[60px_1fr] min-w-[400px]">
               {/* Time column */}
-              <div className="sticky left-0 bg-white dark:bg-slate-800 z-10">
+              <div className="sticky left-0 bg-[rgb(var(--card))] z-10">
                 {hours.map(hour => (
-                  <div key={hour} className="h-16 text-xs text-gray-500 dark:text-slate-400 pr-2 text-right">
+                  <div key={hour} className="h-16 text-xs text-[rgb(var(--muted-foreground))] pr-2 text-right">
                     {format(new Date().setHours(hour, 0), 'h a')}
                   </div>
                 ))}
               </div>
               
               {/* Events column */}
-              <div className="relative border-l border-gray-200 dark:border-slate-700">
+              <div className="relative border-l border-[rgb(var(--border))]">
                 {hours.map(hour => (
                   <div 
                     key={hour} 
-                    className="h-16 border-b border-gray-100 dark:border-slate-700/50"
+                    className="h-16 border-b border-[rgb(var(--border)/0.5)]"
                   />
                 ))}
                 
@@ -405,7 +405,7 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
         {viewType === 'agenda' && (
           <div className="space-y-2 max-h-[600px] overflow-auto">
             {agendaEvents.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 dark:text-slate-400">
+              <div className="text-center py-8 text-[rgb(var(--muted-foreground))]">
                 No events in this period
               </div>
             ) : (
@@ -415,7 +415,7 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
                   onClick={() => onSelectEvent(event.uid)}
                   className={`
                     flex items-start gap-4 p-3 rounded-lg cursor-pointer
-                    hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors
+                    hover:bg-[rgb(var(--accent))] transition-colors
                     ${selectedEventId === event.uid ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-primary-500' : ''}
                   `}
                 >
@@ -424,27 +424,27 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
                   
                   {/* Date */}
                   <div className="text-center min-w-[50px]">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <div className="text-2xl font-bold text-[rgb(var(--foreground))]">
                       {format(event.startDate, 'd')}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-slate-400 uppercase">
+                    <div className="text-xs text-[rgb(var(--muted-foreground))] uppercase">
                       {format(event.startDate, 'MMM')}
                     </div>
                   </div>
                   
                   {/* Event details */}
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 dark:text-white">
+                    <div className="font-medium text-[rgb(var(--foreground))]">
                       {event.summary}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-slate-400">
+                    <div className="text-sm text-[rgb(var(--muted-foreground))]">
                       {event.allDay 
                         ? 'All day'
                         : `${format(event.startDate, 'h:mm a')} - ${format(event.endDate, 'h:mm a')}`
                       }
                     </div>
                     {event.location?.text && (
-                      <div className="text-sm text-gray-500 dark:text-slate-400 truncate">
+                      <div className="text-sm text-[rgb(var(--muted-foreground))] truncate">
                         📍 {event.location.text}
                       </div>
                     )}

@@ -180,28 +180,28 @@ export function ImportExportPanel({
       type: 'google',
       label: 'Google Calendar',
       icon: <Chrome className="w-4 h-4" />,
-      color: 'text-blue-600',
+      color: 'text-[rgb(var(--foreground))]',
       url: generateGoogleCalendarUrl(selectedEvent),
     },
     {
       type: 'outlook',
       label: 'Outlook.com',
       icon: <span className="w-4 h-4 font-bold text-xs">O</span>,
-      color: 'text-blue-500',
+      color: 'text-[rgb(var(--foreground))]',
       url: generateOutlookUrl(selectedEvent),
     },
     {
       type: 'office365',
       label: 'Office 365',
       icon: <span className="w-4 h-4 font-bold text-xs">365</span>,
-      color: 'text-orange-500',
+      color: 'text-[rgb(var(--muted-foreground))]',
       url: generateOffice365Url(selectedEvent),
     },
     {
       type: 'yahoo',
       label: 'Yahoo Calendar',
       icon: <span className="w-4 h-4 font-bold text-xs">Y!</span>,
-      color: 'text-purple-600',
+      color: 'text-[rgb(var(--muted-foreground))]',
       url: generateYahooCalendarUrl(selectedEvent),
     },
   ] : [];
@@ -210,7 +210,7 @@ export function ImportExportPanel({
     <div className="space-y-6">
       {/* Import Section */}
       <Card>
-        <h3 className="font-medium text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+        <h3 className="font-medium text-[rgb(var(--foreground))] mb-4 flex items-center gap-2">
           <Upload className="w-5 h-5" />
           Import
         </h3>
@@ -236,27 +236,27 @@ export function ImportExportPanel({
             transition-all duration-200
             ${isDragging 
               ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' 
-              : 'border-gray-300 dark:border-slate-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-slate-800'
+              : 'border-[rgb(var(--border))] hover:border-[rgb(var(--primary))] hover:bg-[rgb(var(--accent))]'
             }
           `}
         >
-          <Upload className={`w-8 h-8 mx-auto mb-2 ${isDragging ? 'text-primary-500' : 'text-gray-400'}`} />
-          <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+          <Upload className={`w-8 h-8 mx-auto mb-2 ${isDragging ? 'text-primary-500' : 'text-[rgb(var(--muted-foreground))]'}`} />
+          <p className="text-sm font-medium text-[rgb(var(--foreground))]">
             {isDragging ? 'Drop files here...' : 'Drag & drop ICS files here'}
           </p>
-          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-[rgb(var(--muted-foreground))] mt-1">
             or click to browse
           </p>
         </div>
         
-        <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
+        <p className="mt-3 text-xs text-[rgb(var(--muted-foreground))]">
           Supports .ics, .ical, and .ifb files • Multiple files supported
         </p>
       </Card>
 
       {/* Export Section */}
       <Card>
-        <h3 className="font-medium text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+        <h3 className="font-medium text-[rgb(var(--foreground))] mb-4 flex items-center gap-2">
           <Download className="w-5 h-5" />
           Export
         </h3>
@@ -297,12 +297,12 @@ export function ImportExportPanel({
       {/* Quick Add Links */}
       {selectedEvent && (
         <Card>
-          <h3 className="font-medium text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+          <h3 className="font-medium text-[rgb(var(--foreground))] mb-4 flex items-center gap-2">
             <ExternalLink className="w-5 h-5" />
             Add to Calendar
           </h3>
           
-          <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">
+          <p className="text-sm text-[rgb(var(--muted-foreground))] mb-3">
             Quick links for: <strong>{selectedEvent.summary}</strong>
           </p>
           
@@ -337,7 +337,7 @@ export function ImportExportPanel({
             ))}
           </div>
           
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+          <div className="mt-4 pt-4 border-t border-[rgb(var(--border))]">
             <Button
               variant="outline"
               size="sm"
@@ -358,8 +358,8 @@ export function ImportExportPanel({
       {previewContent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="font-medium text-gray-900 dark:text-slate-100">
+            <div className="flex items-center justify-between pb-4 border-b border-[rgb(var(--border))]">
+              <h3 className="font-medium text-[rgb(var(--foreground))]">
                 ICS Preview
               </h3>
               <div className="flex gap-2">
@@ -383,7 +383,7 @@ export function ImportExportPanel({
                 </Button>
               </div>
             </div>
-            <pre className="flex-1 overflow-auto mt-4 p-4 bg-gray-50 dark:bg-slate-900 rounded-lg text-xs font-mono text-gray-700 dark:text-slate-300 whitespace-pre-wrap">
+            <pre className="flex-1 overflow-auto mt-4 p-4 bg-[rgb(var(--accent))] rounded-lg text-xs font-mono text-[rgb(var(--foreground))] whitespace-pre-wrap">
               {previewContent}
             </pre>
           </Card>

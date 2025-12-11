@@ -312,8 +312,8 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
               />
             </div>
 
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-sm text-blue-700 dark:text-blue-400">
+            <div className="p-4 bg-[rgb(var(--accent))] rounded-lg">
+              <p className="text-sm text-[rgb(var(--muted-foreground))]">
                 💡 Tip: Add coordinates to enable map links in Apple and Google Calendar.
               </p>
             </div>
@@ -355,7 +355,7 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
 
                 {event.recurrenceRule.frequency === 'WEEKLY' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    <label className="block text-sm font-medium text-[rgb(var(--foreground))] mb-2">
                       Repeat on
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -367,7 +367,7 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
                             px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
                             ${event.recurrenceRule?.byDay?.includes(day.value)
                               ? 'bg-primary-500 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                              : 'bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]'
                             }
                           `}
                         >
@@ -425,11 +425,11 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
             </div>
 
             {event.alarms && event.alarms.length > 0 && (
-              <Card className="divide-y divide-gray-200 dark:divide-slate-700" padding="none">
+              <Card className="divide-y divide-[rgb(var(--border))]" padding="none">
                 {event.alarms.map((alarm, index) => (
                   <div key={index} className="flex items-center justify-between p-3">
                     <div className="flex items-center gap-3">
-                      <Bell className="w-4 h-4 text-gray-400" />
+                      <Bell className="w-4 h-4 text-[rgb(var(--muted-foreground))]" />
                       <span className="text-sm">
                         {alarm.triggerValue === 0
                           ? 'At time of event'
@@ -454,7 +454,7 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
             )}
 
             {(!event.alarms || event.alarms.length === 0) && (
-              <div className="text-center py-8 text-gray-500 dark:text-slate-400">
+              <div className="text-center py-8 text-[rgb(var(--muted-foreground))]">
                 <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No reminders set</p>
                 <p className="text-sm">Click a preset above to add a reminder</p>
@@ -497,7 +497,7 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
             />
 
             <Card className="space-y-4">
-              <h4 className="font-medium text-gray-900 dark:text-slate-100 flex items-center gap-2">
+              <h4 className="font-medium text-[rgb(var(--foreground))] flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 Organizer
               </h4>
@@ -528,13 +528,13 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
 
             {/* Platform-specific settings */}
             <Card className="space-y-4">
-              <h4 className="font-medium text-gray-900 dark:text-slate-100 flex items-center gap-2">
+              <h4 className="font-medium text-[rgb(var(--foreground))] flex items-center gap-2">
                 <Settings className="w-4 h-4" />
                 Platform Extensions
               </h4>
               
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
+                <div className="flex items-center gap-2 text-sm text-[rgb(var(--muted-foreground))]">
                   <Apple className="w-4 h-4" />
                   <span>Apple Calendar</span>
                 </div>
@@ -553,7 +553,7 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
+                <div className="flex items-center gap-2 text-sm text-[rgb(var(--muted-foreground))]">
                   <Globe className="w-4 h-4" />
                   <span>Microsoft Outlook</span>
                 </div>
@@ -592,7 +592,7 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
+      <div className="flex justify-end gap-3 pt-4 border-t border-[rgb(var(--border))]">
         <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>

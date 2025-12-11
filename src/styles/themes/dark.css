@@ -1,6 +1,6 @@
 /**
  * Dark Theme - Pure Grayscale
- * Elegant dark mode using only grays (no blue tints)
+ * Elegant dark mode using only grays (no colored tints)
  */
 
 .theme-dark {
@@ -16,8 +16,8 @@
   --popover: 32 32 32;
   --popover-foreground: 245 245 245;
   
-  /* Primary - Bright cyan for contrast */
-  --primary: 34 211 238;
+  /* Primary - Light gray for contrast */
+  --primary: 229 229 229;
   --primary-foreground: 18 18 18;
   
   /* Secondary */
@@ -39,7 +39,7 @@
   /* Border & Input - Subtle grays */
   --border: 55 55 55;
   --input: 45 45 45;
-  --ring: 34 211 238;
+  --ring: 163 163 163;
   
   /* Shadows */
   --shadow-color: 0 0 0;
@@ -53,8 +53,8 @@
 /* Dark theme gradient background - subtle */
 .theme-dark .gradient-mesh {
   background: 
-    radial-gradient(ellipse at 30% 10%, rgb(34 211 238 / 0.08) 0px, transparent 50%),
-    radial-gradient(ellipse at 70% 80%, rgb(163 163 163 / 0.04) 0px, transparent 40%),
+    radial-gradient(ellipse at 30% 10%, rgb(45 45 45 / 0.5) 0px, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgb(38 38 38 / 0.3) 0px, transparent 40%),
     linear-gradient(180deg, rgb(18 18 18) 0%, rgb(12 12 12) 100%);
 }
 
@@ -68,6 +68,6 @@
 
 /* Dark theme borders - subtle glow on hover */
 .theme-dark .interactive-border:hover {
-  border-color: rgb(55 55 55);
-  box-shadow: 0 0 0 1px rgb(34 211 238 / 0.1);
+  border-color: rgb(70 70 70);
+  box-shadow: 0 0 0 1px rgb(100 100 100 / 0.1);
 }

@@ -164,21 +164,21 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
       {/* Main Search Bar */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--muted-foreground))]" />
           <input
             type="text"
             value={filters.query}
             onChange={e => updateFilter('query', e.target.value)}
             placeholder="Search events..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 
-                       bg-white dark:bg-slate-800 text-gray-900 dark:text-white
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-[rgb(var(--border))] 
+                       bg-[rgb(var(--card))] text-[rgb(var(--foreground))]
                        focus:ring-2 focus:ring-primary-500 focus:border-transparent
-                       placeholder:text-gray-400"
+                       placeholder:text-[rgb(var(--muted-foreground))]"
           />
           {filters.query && (
             <button
               onClick={() => updateFilter('query', '')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))]"
             >
               <X className="w-4 h-4" />
             </button>
@@ -201,7 +201,7 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
       </div>
 
       {/* Results count */}
-      <div className="flex items-center justify-between text-sm text-gray-500 dark:text-slate-400">
+      <div className="flex items-center justify-between text-sm text-[rgb(var(--muted-foreground))]">
         <span>
           {filteredEvents.length} of {events.length} events
           {hasActiveFilters && ' (filtered)'}
@@ -218,10 +218,10 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
 
       {/* Advanced Filters */}
       {showAdvanced && (
-        <div className="p-4 bg-gray-50 dark:bg-slate-900/50 rounded-lg space-y-4 animate-fade-in">
+        <div className="p-4 bg-[rgb(var(--accent))]/50 rounded-lg space-y-4 animate-fade-in">
           {/* Date Range */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-[rgb(var(--foreground))] mb-2">
               <Calendar className="w-4 h-4 inline mr-1" />
               Date Range
             </label>
@@ -230,16 +230,16 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
                 type="date"
                 value={filters.dateFrom}
                 onChange={e => updateFilter('dateFrom', e.target.value)}
-                className="flex-1 px-3 py-1.5 rounded border border-gray-300 dark:border-slate-600 
-                           bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm"
+                className="flex-1 px-3 py-1.5 rounded border border-[rgb(var(--border))] 
+                           bg-[rgb(var(--card))] text-[rgb(var(--foreground))] text-sm"
               />
               <span className="text-gray-500">to</span>
               <input
                 type="date"
                 value={filters.dateTo}
                 onChange={e => updateFilter('dateTo', e.target.value)}
-                className="flex-1 px-3 py-1.5 rounded border border-gray-300 dark:border-slate-600 
-                           bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm"
+                className="flex-1 px-3 py-1.5 rounded border border-[rgb(var(--border))] 
+                           bg-[rgb(var(--card))] text-[rgb(var(--foreground))] text-sm"
               />
             </div>
           </div>
@@ -247,7 +247,7 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
           {/* Categories */}
           {filterOptions.categories.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-[rgb(var(--foreground))] mb-2">
                 <Tag className="w-4 h-4 inline mr-1" />
                 Categories
               </label>
@@ -260,7 +260,7 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
                       px-2.5 py-1 rounded-full text-xs font-medium transition-colors
                       ${filters.categories.includes(category)
                         ? 'bg-primary-500 text-white'
-                        : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300 dark:hover:bg-slate-600'
+                        : 'bg-[rgb(var(--secondary))] text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]'
                       }
                     `}
                   >
@@ -273,7 +273,7 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-[rgb(var(--foreground))] mb-2">
               Status
             </label>
             <div className="flex flex-wrap gap-2">
@@ -285,7 +285,7 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
                     px-2.5 py-1 rounded-full text-xs font-medium transition-colors
                     ${filters.status.includes(status)
                       ? 'bg-primary-500 text-white'
-                      : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300 dark:hover:bg-slate-600'
+                      : 'bg-[rgb(var(--secondary))] text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]'
                     }
                   `}
                 >
@@ -297,7 +297,7 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
 
           {/* Has Location */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-[rgb(var(--foreground))] mb-2">
               <MapPin className="w-4 h-4 inline mr-1" />
               Location
             </label>
@@ -314,7 +314,7 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
                     px-2.5 py-1 rounded-full text-xs font-medium transition-colors
                     ${filters.hasLocation === option.value
                       ? 'bg-primary-500 text-white'
-                      : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300 dark:hover:bg-slate-600'
+                      : 'bg-[rgb(var(--secondary))] text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]'
                     }
                   `}
                 >
@@ -327,14 +327,14 @@ export function SearchFilter({ events, onFilteredEventsChange }: SearchFilterPro
           {/* Source File */}
           {filterOptions.sourceFiles.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-[rgb(var(--foreground))] mb-2">
                 Source File
               </label>
               <select
                 value={filters.sourceFile}
                 onChange={e => updateFilter('sourceFile', e.target.value)}
-                className="w-full px-3 py-1.5 rounded border border-gray-300 dark:border-slate-600 
-                           bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm"
+                className="w-full px-3 py-1.5 rounded border border-[rgb(var(--border))] 
+                           bg-[rgb(var(--card))] text-[rgb(var(--foreground))] text-sm"
               >
                 <option value="">All files</option>
                 {filterOptions.sourceFiles.map(file => (
