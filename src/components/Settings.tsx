@@ -250,22 +250,6 @@ export function Settings({
                   </div>
                 )}
               </div>
-
-              {/* About Section */}
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-[rgb(var(--muted-foreground))] mb-3 px-2">
-                  {t.about || 'About'}
-                </h3>
-                <div className="p-4 bg-[rgb(var(--card))] rounded-xl">
-                  <p className="font-medium text-[rgb(var(--foreground))]">{t.appName || 'Calendar Event Generator'}</p>
-                  <p className="text-sm text-[rgb(var(--muted-foreground))] mt-1">
-                    {t.appDescription || 'Create events for Apple, Google & Microsoft calendars'}
-                  </p>
-                  <p className="text-xs text-[rgb(var(--muted-foreground))] mt-2">
-                    v1.0.0 • Made with ❤️
-                  </p>
-                </div>
-              </div>
             </div>
           )}
 

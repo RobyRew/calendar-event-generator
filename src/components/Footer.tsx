@@ -11,7 +11,7 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-[rgb(var(--border))] bg-[rgb(var(--background))] mt-8">
+    <footer className="border-t border-[rgb(var(--border))] bg-[rgb(var(--background))] mt-auto shrink-0">
       {/* Mobile Footer - Compact */}
       <div className="sm:hidden py-4 px-4">
         <div className="flex items-center justify-between text-xs text-[rgb(var(--muted-foreground))]">

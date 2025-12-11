@@ -394,7 +394,7 @@ function CalendarApp() {
 
   return (
     <div 
-      className={`min-h-screen min-h-[100dvh] gradient-mesh ${theme !== 'light' ? theme : ''}`}
+      className={`min-h-[100dvh] flex flex-col gradient-mesh ${theme !== 'light' ? theme : ''}`}
       onDragEnter={handleGlobalDragEnter}
       onDragLeave={handleGlobalDragLeave}
       onDragOver={handleGlobalDragOver}
@@ -485,7 +485,7 @@ function CalendarApp() {
         )}
       </div>
 
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-24 sm:pb-6">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-24 sm:pb-6 flex-1">
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="flex items-center bg-[rgb(var(--card))] rounded-lg p-1 shadow-sm border border-[rgb(var(--border))]">
             <button
