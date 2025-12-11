@@ -1,9 +1,7 @@
 /**
- * Translations System
- * Each language is in its own file under ./locales/
+ * i18n Types
  */
 
-// Type definitions
 export type Language = 'en' | 'es' | 'de' | 'fr' | 'it' | 'pt' | 'zh' | 'ja' | 'ko' | 'ru';
 
 export interface Translations {
@@ -29,9 +27,6 @@ export interface Translations {
   clearAll: string;
   undo: string;
   redo: string;
-  edit: string;
-  duplicate: string;
-  delete: string;
   
   // Import/Export
   importICS: string;
@@ -41,7 +36,6 @@ export interface Translations {
   exportOptions: string;
   noEventSelected: string;
   selectedEventLabel: string;
-  releaseToImport: string;
   
   // Views
   listView: string;
@@ -116,9 +110,6 @@ export interface Translations {
   exportAppleCalendar: string;
   exportAll: string;
   exportSelected: string;
-  copyToClipboard: string;
-  copiedToClipboard: string;
-  openInBrowser: string;
   
   // Import
   importFile: string;
@@ -132,21 +123,12 @@ export interface Translations {
   actions: string;
   events: string;
   settings: string;
-  switchToTheme: string;
-  currentTheme: string;
   
   // Settings
   language: string;
   darkMode: string;
   lightMode: string;
   theme: string;
-  
-  // Theme names
-  themeLight: string;
-  themeDark: string;
-  themeOled: string;
-  themeNeumorphic: string;
-  themeGlass: string;
   
   // Messages
   eventCreated: string;
@@ -159,18 +141,6 @@ export interface Translations {
   confirmDelete: string;
   confirmClearAll: string;
   noEvents: string;
-  noEventsYet: string;
-  createFirstEvent: string;
-  allEventsCleared: string;
-  
-  // Sidebar
-  selectedEvent: string;
-  shortcuts: string;
-  searchCommands: string;
-  event: string;
-  
-  // Footer
-  footerText: string;
   
   // Time
   today: string;
@@ -225,50 +195,4 @@ export interface Translations {
   geolocation: string;
   allDayEvents: string;
   eventCategories: string;
-}
-
-// Import locale files
-import { en as enLocale } from './locales/en';
-import { es as esLocale } from './locales/es';
-import { de as deLocale } from './locales/de';
-import { fr as frLocale } from './locales/fr';
-
-// Export locales
-export const en = enLocale;
-export const es = esLocale;
-export const de = deLocale;
-export const fr = frLocale;
-
-// All translations
-export const translations: Record<Language, Translations> = {
-  en,
-  es,
-  de,
-  fr,
-  it: en, // Fallback
-  pt: en,
-  zh: en,
-  ja: en,
-  ko: en,
-  ru: en,
-};
-
-// Language names for display
-export const languageNames: Record<Language, string> = {
-  en: 'English',
-  es: 'Español',
-  de: 'Deutsch',
-  fr: 'Français',
-  it: 'Italiano',
-  pt: 'Português',
-  zh: '中文',
-  ja: '日本語',
-  ko: '한국어',
-  ru: 'Русский',
-};
-
-// Get browser language
-export function getBrowserLanguage(): Language {
-  const browserLang = navigator.language.split('-')[0] as Language;
-  return translations[browserLang] ? browserLang : 'en';
 }
