@@ -3,19 +3,14 @@
  */
 
 import { Button } from '@/components/ui';
-import { Calendar, Github } from 'lucide-react';
-import { LanguageSelector } from '@/components/LanguageSelector';
-import { ThemeSelector } from '@/components/ThemeSelector';
+import { Calendar, Settings } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
-import { ThemeId } from '@/styles/themes';
 
 interface HeaderProps {
-  theme: ThemeId;
-  onChangeTheme: (theme: ThemeId) => void;
-  onOpenQuickActions?: () => void;
+  onOpenSettings: () => void;
 }
 
-export function Header({ theme, onChangeTheme }: HeaderProps) {
+export function Header({ onOpenSettings }: HeaderProps) {
   const { t } = useI18n();
   
   return (
@@ -35,25 +30,15 @@ export function Header({ theme, onChangeTheme }: HeaderProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-2">
-          <LanguageSelector compact />
-          
-          <ThemeSelector 
-            theme={theme} 
-            onChangeTheme={onChangeTheme}
-            compact
-          />
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.open('https://github.com/RobyRew/calendar-event-generator', '_blank')}
-            aria-label="View on GitHub"
-            className="p-2 hidden sm:flex"
-          >
-            <Github className="w-4 h-4 sm:w-5 sm:h-5" />
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onOpenSettings}
+          aria-label={t.settings}
+          className="p-2"
+        >
+          <Settings className="w-5 h-5" />
+        </Button>
       </div>
     </header>
   );

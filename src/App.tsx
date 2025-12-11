@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { CalendarProvider, useCalendar, useI18n } from '@/context';
-import { Header, EventList, Card, Alert, Settings } from '@/components';
+import { Header, EventList, Card, Alert, Settings, Footer } from '@/components';
 import { EventForm as EventFormAccordion } from '@/components/EventFormAccordion';
 import { CalendarView } from '@/components/CalendarView';
 import { CommandPalette } from '@/components/CommandPalette';
@@ -13,7 +13,7 @@ import { NewEventModal, EventTemplate } from '@/components/NewEventModal';
 import { ExportOptions } from '@/components/ExportOptions';
 import { CalendarEvent } from '@/types';
 import { parseICSFile, generateEventICS, downloadICS, saveEvents, loadEvents, saveSettings, loadSettings, clearAllData, getStorageInfo } from '@/lib';
-import { Undo2, Redo2, Calendar, List, Search, Download, Plus, X, FileText, Settings as SettingsIcon } from 'lucide-react';
+import { Undo2, Redo2, Calendar, List, Search, Download, Plus, X, FileText } from 'lucide-react';
 import { ThemeId, THEMES } from '@/styles/themes';
 
 function CalendarApp() {
@@ -469,8 +469,7 @@ function CalendarApp() {
       )}
       
       <Header
-        theme={theme}
-        onChangeTheme={handleThemeChange}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
       <div className="fixed top-16 right-2 sm:right-4 z-50 space-y-2 max-w-[90vw] sm:max-w-sm">
@@ -562,14 +561,6 @@ function CalendarApp() {
             >
               <Search className="w-4 h-4" />
               <kbd className="hidden sm:inline text-xs bg-[rgb(var(--accent))] px-1.5 py-0.5 rounded">⌘K</kbd>
-            </button>
-
-            <button
-              onClick={() => setShowSettings(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--card))] rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))] border border-[rgb(var(--border))] transition-colors"
-              title={t.settings}
-            >
-              <SettingsIcon className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -728,11 +719,7 @@ function CalendarApp() {
         </button>
       </div>
 
-      <footer className="hidden sm:block border-t border-[rgb(var(--border))] mt-12 py-6">
-        <div className="container mx-auto px-4 text-center text-sm text-[rgb(var(--muted-foreground))]">
-          <p>{t.footerText}</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

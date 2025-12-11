@@ -52,13 +52,12 @@ export default {
     },
   },
   plugins: [
-    // Theme variant plugins for all 5 themes
+    // Theme variant plugins for all themes
     plugin(function({ addVariant }) {
       addVariant('theme-light', '.theme-light &');
       addVariant('theme-dark', '.theme-dark &');
       addVariant('theme-oled', '.theme-oled &');
       addVariant('theme-neumorphic', '.theme-neumorphic &');
-      addVariant('theme-glass', '.theme-glass &');
     }),
   ],
 }

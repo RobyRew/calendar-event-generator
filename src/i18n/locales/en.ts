@@ -144,7 +144,6 @@ export const en: Translations = {
   themeDark: 'Dark',
   themeOled: 'OLED',
   themeNeumorphic: 'Neumorphic',
-  themeGlass: 'Liquid Glass',
   
   // Messages
   eventCreated: 'Event created!',
@@ -234,4 +233,11 @@ export const en: Translations = {
   geolocation: 'Geo-location for maps',
   allDayEvents: 'All-day events',
   eventCategories: 'Event categories/tags',
+  
+  // Footer
+  viewOnGitHub: 'View on GitHub',
+  madeWith: 'Made with',
+  by: 'by',
+  allRightsReserved: 'All rights reserved',
+  openSource: 'Open Source',
 };

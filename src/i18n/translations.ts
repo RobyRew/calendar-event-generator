@@ -146,7 +146,6 @@ export interface Translations {
   themeDark: string;
   themeOled: string;
   themeNeumorphic: string;
-  themeGlass: string;
   
   // Messages
   eventCreated: string;
@@ -236,6 +235,13 @@ export interface Translations {
   geolocation: string;
   allDayEvents: string;
   eventCategories: string;
+  
+  // Footer
+  viewOnGitHub: string;
+  madeWith: string;
+  by: string;
+  allRightsReserved: string;
+  openSource: string;
 }
 
 // Import locale files
