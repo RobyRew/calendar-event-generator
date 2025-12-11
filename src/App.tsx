@@ -486,237 +486,291 @@ function CalendarApp() {
       </div>
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-24 sm:pb-6 flex-1">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center bg-[rgb(var(--card))] rounded-lg p-1 shadow-sm border border-[rgb(var(--border))]">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))]'
-                  : 'text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))]'
-              }`}
-            >
-              <List className="w-4 h-4" />
-              <span className="hidden sm:inline">{t.listView}</span>
-            </button>
-            <button
-              onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'calendar'
-                  ? 'bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))]'
-                  : 'text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))]'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">{t.calendarView}</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {(canUndo || canRedo) && (
-              <div className="flex items-center bg-[rgb(var(--card))] rounded-lg p-1 shadow-sm border border-[rgb(var(--border))]">
-                <button
-                  onClick={() => { undo(); setSuccess(t.undo); }}
-                  disabled={!canUndo}
-                  className={`p-1.5 rounded-md transition-colors ${
-                    canUndo
-                      ? 'text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))]'
-                      : 'text-[rgb(var(--muted-foreground)/0.3)] cursor-not-allowed'
-                  }`}
-                  title="Undo (⌘Z)"
-                >
-                  <Undo2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => { redo(); setSuccess(t.redo); }}
-                  disabled={!canRedo}
-                  className={`p-1.5 rounded-md transition-colors ${
-                    canRedo
-                      ? 'text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))]'
-                      : 'text-[rgb(var(--muted-foreground)/0.3)] cursor-not-allowed'
-                  }`}
-                  title="Redo (⌘⇧Z)"
-                >
-                  <Redo2 className="w-4 h-4" />
-                </button>
+        {/* Empty State - Hero Landing */}
+        {!showEventForm && displayEvents.length === 0 && viewMode === 'list' && (
+          <div className="min-h-[60dvh] flex flex-col items-center justify-center text-center px-4">
+            {/* Hero Icon */}
+            <div className="relative mb-8">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-[rgb(var(--primary))] to-[rgb(var(--primary)/0.7)] flex items-center justify-center shadow-xl">
+                <Calendar className="w-10 h-10 sm:w-12 sm:h-12 text-[rgb(var(--primary-foreground))]" />
               </div>
-            )}
-
-            <button
-              onClick={() => setShowExportOptions(true)}
-              disabled={state.calendar.events.length === 0}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                state.calendar.events.length === 0
-                  ? 'bg-[rgb(var(--muted))] text-[rgb(var(--muted-foreground)/0.3)] border-[rgb(var(--border))] cursor-not-allowed'
-                  : 'bg-[rgb(var(--card))] text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))] border-[rgb(var(--border))]'
-              }`}
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">{t.export}</span>
-            </button>
-
-            <button
-              onClick={() => setShowCommandPalette(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--card))] rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))] border border-[rgb(var(--border))] transition-colors"
-            >
-              <Search className="w-4 h-4" />
-              <kbd className="hidden sm:inline text-xs bg-[rgb(var(--accent))] px-1.5 py-0.5 rounded">⌘K</kbd>
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-          {showEventForm && editingEvent && (
-            <div className="lg:col-span-5 xl:col-span-4 order-first">
-              <Card className="sticky top-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-[rgb(var(--foreground))]">
-                    {state.calendar.events.find(e => e.uid === editingEvent.uid) 
-                      ? t.editEvent
-                      : t.newEvent
-                    }
-                  </h2>
-                  <button
-                    onClick={handleCancelEdit}
-                    className="p-1.5 hover:bg-[rgb(var(--accent))] rounded-lg transition-colors"
-                    title="Close"
-                  >
-                    <X className="w-5 h-5 text-[rgb(var(--muted-foreground))]" />
-                  </button>
-                </div>
-                <EventFormAccordion
-                  event={editingEvent}
-                  onChange={setEditingEvent}
-                  onSave={handleSaveEvent}
-                  onCancel={handleCancelEdit}
-                />
-              </Card>
+              <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[rgb(var(--accent))] border-4 border-[rgb(var(--background))] flex items-center justify-center">
+                <Plus className="w-4 h-4 text-[rgb(var(--foreground))]" />
+              </div>
             </div>
-          )}
-          
-          <div className={`${showEventForm ? 'lg:col-span-7 xl:col-span-8' : 'lg:col-span-12'}`}>
-            {viewMode === 'calendar' ? (
-              <Card>
-                <CalendarView
-                  events={displayEvents}
-                  selectedEventId={state.selectedEventId}
-                  onSelectEvent={handleSelectEvent}
-                  onSelectDate={handleCalendarDateClick}
-                />
-              </Card>
-            ) : displayEvents.length > 0 ? (
-              <EventList
-                events={displayEvents}
-                selectedEventId={state.selectedEventId}
-                onSelect={handleSelectEvent}
-                onDelete={deleteEvent}
-                onDuplicate={handleDuplicateEvent}
-              />
-            ) : (
-              <div className="space-y-4">
-                <Card className="text-center py-16">
-                  <Calendar className="w-16 h-16 mx-auto text-[rgb(var(--muted-foreground)/0.3)] mb-4" />
-                  <h3 className="text-xl font-semibold text-[rgb(var(--foreground))] mb-2">
-                    {t.noEvents}
-                  </h3>
-                  <p className="text-[rgb(var(--muted-foreground))] mb-6 max-w-sm mx-auto">
-                    {t.createFirstEvent}
-                  </p>
-                  <button
-                    onClick={() => setShowNewEventModal(true)}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-xl hover:opacity-90 transition-opacity font-medium"
-                  >
-                    <Plus className="w-5 h-5" />
-                    {t.newEvent}
-                  </button>
-                </Card>
 
-                {/* Service Info */}
-                <div className="p-4 bg-[rgb(var(--accent))] rounded-xl border border-[rgb(var(--border))]">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[rgb(var(--primary))] flex items-center justify-center shrink-0">
-                      <Calendar className="w-5 h-5 text-[rgb(var(--primary-foreground))]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm text-[rgb(var(--foreground))]">
-                        {t.universalCalendarSupport}
-                      </p>
-                      <p className="text-xs text-[rgb(var(--muted-foreground))] mt-1">
-                        {t.serviceDescription}
-                      </p>
-                    </div>
-                  </div>
+            {/* Hero Text */}
+            <h2 className="text-2xl sm:text-3xl font-bold text-[rgb(var(--foreground))] mb-3">
+              {t.noEventsYet}
+            </h2>
+            <p className="text-[rgb(var(--muted-foreground))] mb-8 max-w-md text-sm sm:text-base">
+              {t.createFirstEvent}
+            </p>
+
+            {/* Primary Actions */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <button
+                onClick={() => setShowNewEventModal(true)}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-xl hover:opacity-90 active:scale-[0.98] transition-all font-medium shadow-lg shadow-[rgb(var(--primary)/0.25)]"
+              >
+                <Plus className="w-5 h-5" />
+                {t.newEvent}
+              </button>
+              <button
+                onClick={handleImportClick}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-[rgb(var(--card))] text-[rgb(var(--foreground))] rounded-xl hover:bg-[rgb(var(--accent))] active:scale-[0.98] transition-all font-medium border border-[rgb(var(--border))]"
+              >
+                <Download className="w-5 h-5" />
+                {t.importICS}
+              </button>
+            </div>
+
+            {/* Feature Pills */}
+            <div className="mt-12 flex flex-wrap justify-center gap-2 max-w-lg">
+              {[
+                { icon: '🍎', label: 'Apple Calendar' },
+                { icon: '📅', label: 'Google Calendar' },
+                { icon: '📧', label: 'Outlook' },
+                { icon: '🔄', label: t.recurringEvents?.split(' ')[0] || 'Recurring' },
+              ].map((feature, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[rgb(var(--accent))] rounded-full text-xs font-medium text-[rgb(var(--muted-foreground))]"
+                >
+                  <span>{feature.icon}</span>
+                  {feature.label}
+                </span>
+              ))}
+            </div>
+
+            {/* Service Info Card */}
+            <div className="mt-8 p-4 bg-[rgb(var(--card))] rounded-2xl border border-[rgb(var(--border))] max-w-md w-full">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[rgb(var(--accent))] flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5 text-[rgb(var(--primary))]" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-medium text-sm text-[rgb(var(--foreground))]">
+                    {t.universalCalendarSupport}
+                  </p>
+                  <p className="text-xs text-[rgb(var(--muted-foreground))] mt-0.5">
+                    {t.serviceDescription}
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
           </div>
+        )}
 
-          {!showEventForm && displayEvents.length > 0 && (
-            <div className="hidden xl:block xl:col-span-3 space-y-4">
-              <Card>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-[rgb(var(--primary))]">{displayEvents.length}</div>
-                  <div className="text-sm text-[rgb(var(--muted-foreground))]">
-                    {displayEvents.length === 1 ? t.event : t.events}
-                  </div>
-                </div>
-              </Card>
+        {/* Has Events or Calendar View - Show Toolbar */}
+        {(displayEvents.length > 0 || viewMode === 'calendar' || showEventForm) && (
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center bg-[rgb(var(--card))] rounded-lg p-1 shadow-sm border border-[rgb(var(--border))]">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))]'
+                    : 'text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))]'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                <span className="hidden sm:inline">{t.listView}</span>
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'calendar'
+                    ? 'bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))]'
+                    : 'text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))]'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                <span className="hidden sm:inline">{t.calendarView}</span>
+              </button>
+            </div>
 
-              {selectedEvent && (
-                <Card>
-                  <h3 className="font-medium text-[rgb(var(--foreground))] mb-3 flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-[rgb(var(--primary))]" />
-                    {t.selectedEvent}
-                  </h3>
-                  <div className="p-3 bg-[rgb(var(--accent))] rounded-lg">
-                    <p className="font-medium text-[rgb(var(--foreground))] truncate text-sm">
-                      {selectedEvent.summary}
-                    </p>
-                    <p className="text-xs text-[rgb(var(--muted-foreground))] mt-1">
-                      {selectedEvent.allDay 
-                        ? new Date(selectedEvent.startDate).toLocaleDateString()
-                        : new Date(selectedEvent.startDate).toLocaleString()
-                      }
-                    </p>
-                    {selectedEvent.sourceFile && (
-                      <p className="text-xs text-[rgb(var(--muted-foreground)/0.7)] mt-1 flex items-center gap-1">
-                        <FileText className="w-3 h-3" />
-                        {selectedEvent.sourceFile}
-                      </p>
-                    )}
-                  </div>
+            <div className="flex items-center gap-2">
+              {(canUndo || canRedo) && (
+                <div className="flex items-center bg-[rgb(var(--card))] rounded-lg p-1 shadow-sm border border-[rgb(var(--border))]">
                   <button
-                    onClick={handleQuickExportSelected}
-                    className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-lg text-sm hover:opacity-90 transition-opacity"
+                    onClick={() => { undo(); setSuccess(t.undo); }}
+                    disabled={!canUndo}
+                    className={`p-1.5 rounded-md transition-colors ${
+                      canUndo
+                        ? 'text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))]'
+                        : 'text-[rgb(var(--muted-foreground)/0.3)] cursor-not-allowed'
+                    }`}
+                    title="Undo (⌘Z)"
                   >
-                    <Download className="w-4 h-4" />
-                    {t.export}
+                    <Undo2 className="w-4 h-4" />
                   </button>
-                </Card>
+                  <button
+                    onClick={() => { redo(); setSuccess(t.redo); }}
+                    disabled={!canRedo}
+                    className={`p-1.5 rounded-md transition-colors ${
+                      canRedo
+                        ? 'text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))]'
+                        : 'text-[rgb(var(--muted-foreground)/0.3)] cursor-not-allowed'
+                    }`}
+                    title="Redo (⌘⇧Z)"
+                  >
+                    <Redo2 className="w-4 h-4" />
+                  </button>
+                </div>
               )}
 
-              <Card>
-                <h3 className="font-medium text-[rgb(var(--foreground))] mb-3 text-sm">
-                  ⌨️ {t.shortcuts}
-                </h3>
-                <div className="space-y-2 text-xs text-[rgb(var(--muted-foreground))]">
-                  <div className="flex items-center justify-between">
-                    <span>{t.searchCommands}</span>
-                    <kbd className="px-1.5 py-0.5 bg-[rgb(var(--accent))] rounded">⌘K</kbd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>{t.newEvent}</span>
-                    <kbd className="px-1.5 py-0.5 bg-[rgb(var(--accent))] rounded">⌘N</kbd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>{t.undo}</span>
-                    <kbd className="px-1.5 py-0.5 bg-[rgb(var(--accent))] rounded">⌘Z</kbd>
-                  </div>
-                </div>
-              </Card>
+              <button
+                onClick={() => setShowNewEventModal(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">{t.newEvent}</span>
+              </button>
+
+              <button
+                onClick={() => setShowExportOptions(true)}
+                disabled={state.calendar.events.length === 0}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                  state.calendar.events.length === 0
+                    ? 'bg-[rgb(var(--muted))] text-[rgb(var(--muted-foreground)/0.3)] border-[rgb(var(--border))] cursor-not-allowed'
+                    : 'bg-[rgb(var(--card))] text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))] border-[rgb(var(--border))]'
+                }`}
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">{t.export}</span>
+              </button>
+
+              <button
+                onClick={() => setShowCommandPalette(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-[rgb(var(--card))] rounded-lg text-sm text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))] border border-[rgb(var(--border))] transition-colors"
+              >
+                <Search className="w-4 h-4" />
+                <kbd className="hidden sm:inline text-xs bg-[rgb(var(--accent))] px-1.5 py-0.5 rounded">⌘K</kbd>
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        {(displayEvents.length > 0 || viewMode === 'calendar' || showEventForm) && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+            {showEventForm && editingEvent && (
+              <div className="lg:col-span-5 xl:col-span-4 order-first">
+                <Card className="sticky top-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-[rgb(var(--foreground))]">
+                      {state.calendar.events.find(e => e.uid === editingEvent.uid) 
+                        ? t.editEvent
+                        : t.newEvent
+                      }
+                    </h2>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="p-1.5 hover:bg-[rgb(var(--accent))] rounded-lg transition-colors"
+                      title="Close"
+                    >
+                      <X className="w-5 h-5 text-[rgb(var(--muted-foreground))]" />
+                    </button>
+                  </div>
+                  <EventFormAccordion
+                    event={editingEvent}
+                    onChange={setEditingEvent}
+                    onSave={handleSaveEvent}
+                    onCancel={handleCancelEdit}
+                  />
+                </Card>
+              </div>
+            )}
+            
+            <div className={`${showEventForm ? 'lg:col-span-7 xl:col-span-8' : 'lg:col-span-12 xl:col-span-9'}`}>
+              {viewMode === 'calendar' ? (
+                <Card>
+                  <CalendarView
+                    events={displayEvents}
+                    selectedEventId={state.selectedEventId}
+                    onSelectEvent={handleSelectEvent}
+                    onSelectDate={handleCalendarDateClick}
+                  />
+                </Card>
+              ) : displayEvents.length > 0 ? (
+                <EventList
+                  events={displayEvents}
+                  selectedEventId={state.selectedEventId}
+                  onSelect={handleSelectEvent}
+                  onDelete={deleteEvent}
+                  onDuplicate={handleDuplicateEvent}
+                />
+              ) : null}
+            </div>
+
+            {!showEventForm && displayEvents.length > 0 && (
+              <div className="hidden xl:block xl:col-span-3 space-y-4">
+                <Card className="p-5">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-[rgb(var(--primary))]">{displayEvents.length}</div>
+                    <div className="text-sm text-[rgb(var(--muted-foreground))] mt-1">
+                      {displayEvents.length === 1 ? t.event : t.events}
+                    </div>
+                  </div>
+                </Card>
+
+                {selectedEvent && (
+                  <Card>
+                    <h3 className="font-medium text-[rgb(var(--foreground))] mb-3 flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4 text-[rgb(var(--primary))]" />
+                      {t.selectedEvent}
+                    </h3>
+                    <div className="p-3 bg-[rgb(var(--accent))] rounded-lg">
+                      <p className="font-medium text-[rgb(var(--foreground))] truncate text-sm">
+                        {selectedEvent.summary}
+                      </p>
+                      <p className="text-xs text-[rgb(var(--muted-foreground))] mt-1">
+                        {selectedEvent.allDay 
+                          ? new Date(selectedEvent.startDate).toLocaleDateString()
+                          : new Date(selectedEvent.startDate).toLocaleString()
+                        }
+                      </p>
+                      {selectedEvent.sourceFile && (
+                        <p className="text-xs text-[rgb(var(--muted-foreground)/0.7)] mt-1 flex items-center gap-1">
+                          <FileText className="w-3 h-3" />
+                          {selectedEvent.sourceFile}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleQuickExportSelected}
+                      className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] rounded-lg text-sm hover:opacity-90 transition-opacity"
+                    >
+                      <Download className="w-4 h-4" />
+                      {t.export}
+                    </button>
+                  </Card>
+                )}
+
+                <Card>
+                  <h3 className="font-medium text-[rgb(var(--foreground))] mb-3 text-sm">
+                    ⌨️ {t.shortcuts}
+                  </h3>
+                  <div className="space-y-2 text-xs text-[rgb(var(--muted-foreground))]">
+                    <div className="flex items-center justify-between">
+                      <span>{t.searchCommands}</span>
+                      <kbd className="px-1.5 py-0.5 bg-[rgb(var(--accent))] rounded">⌘K</kbd>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>{t.newEvent}</span>
+                      <kbd className="px-1.5 py-0.5 bg-[rgb(var(--accent))] rounded">⌘N</kbd>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>{t.undo}</span>
+                      <kbd className="px-1.5 py-0.5 bg-[rgb(var(--accent))] rounded">⌘Z</kbd>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       <Footer />
