@@ -340,6 +340,24 @@ export function ExportOptions({ calendar, selectedEvent, onClose, onSuccess }: E
               {t.exportSelected}
             </button>
           </div>
+          
+          {/* Show selected event info when export scope is selected */}
+          {exportScope === 'selected' && selectedEvent && (
+            <div className="mt-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
+              <p className="text-xs text-primary-600 dark:text-primary-400 font-medium uppercase tracking-wide mb-1">
+                Exporting Event:
+              </p>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {selectedEvent.summary}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
+                {selectedEvent.allDay 
+                  ? format(selectedEvent.startDate, 'EEEE, MMMM d, yyyy')
+                  : format(selectedEvent.startDate, 'EEEE, MMMM d, yyyy \'at\' h:mm a')
+                }
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Export Formats */}

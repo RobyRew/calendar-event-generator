@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { CalendarEvent } from '@/types';
+import { useI18n } from '@/context/I18nContext';
 import { 
   Search, 
   Plus, 
@@ -13,8 +14,11 @@ import {
   Download, 
   Upload, 
   Trash2, 
-  Moon, 
   Sun,
+  Moon,
+  Smartphone,
+  Layers,
+  Droplets,
   FileText,
   Tag,
   Command
@@ -30,6 +34,8 @@ interface CommandItem {
   category: 'action' | 'event' | 'navigation' | 'settings';
 }
 
+import { ThemeId, THEMES } from '@/styles/themes';
+
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
@@ -38,11 +44,21 @@ interface CommandPaletteProps {
   onSelectEvent: (eventId: string) => void;
   onExportAll: () => void;
   onImportClick: () => void;
-  onToggleDarkMode: () => void;
-  darkMode: boolean;
+  onChangeTheme: (theme: ThemeId) => void;
+  theme: ThemeId;
   onClearAll: () => void;
-  onApplyTemplate: (templateId: string) => void;
 }
+
+// Helper to get theme icons
+const getThemeIcon = (themeId: ThemeId): React.ReactNode => {
+  switch (themeId) {
+    case 'light': return <Sun className="w-4 h-4" />;
+    case 'dark': return <Moon className="w-4 h-4" />;
+    case 'oled': return <Smartphone className="w-4 h-4" />;
+    case 'neumorphic': return <Layers className="w-4 h-4" />;
+    case 'glass': return <Droplets className="w-4 h-4" />;
+  }
+};
 
 // Predefined event templates
 export const EVENT_TEMPLATES = [
@@ -130,11 +146,11 @@ export function CommandPalette({
   onSelectEvent,
   onExportAll,
   onImportClick,
-  onToggleDarkMode,
-  darkMode,
+  onChangeTheme,
+  theme,
   onClearAll,
-  onApplyTemplate,
 }: CommandPaletteProps) {
+  const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -195,27 +211,27 @@ export function CommandPalette({
         category: 'action',
       },
       
-      // Templates
-      ...EVENT_TEMPLATES.map(template => ({
-        id: `template-${template.id}`,
-        title: `Create ${template.name}`,
-        subtitle: `${template.duration >= 1440 ? 'All day' : `${template.duration} min`} event template`,
-        icon: <FileText className="w-4 h-4" />,
-        action: () => { onApplyTemplate(template.id); onClose(); },
-        keywords: ['template', template.id, template.name.toLowerCase()],
-        category: 'action' as const,
-      })),
-      
-      // Settings
+      // Templates - Single command that opens the template modal
       {
-        id: 'toggle-dark',
-        title: darkMode ? 'Light Mode' : 'Dark Mode',
-        subtitle: 'Toggle dark/light theme',
-        icon: darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />,
-        action: () => { onToggleDarkMode(); onClose(); },
-        keywords: ['dark', 'light', 'theme', 'mode'],
-        category: 'settings',
+        id: 'new-from-template',
+        title: t.newFromTemplate,
+        subtitle: t.createEvent,
+        icon: <FileText className="w-4 h-4" />,
+        action: () => { onNewEvent(); onClose(); },
+        keywords: ['template', 'quick', 'preset', 'meeting', 'call', 'lunch', 'workout'],
+        category: 'action',
       },
+      
+      // Theme settings - Add all themes as options
+      ...THEMES.map(themeOption => ({
+        id: `theme-${themeOption.id}`,
+        title: `${t.switchToTheme} ${themeOption.name}`,
+        subtitle: theme === themeOption.id ? `✓ ${t.currentTheme}` : themeOption.description,
+        icon: getThemeIcon(themeOption.id),
+        action: () => { onChangeTheme(themeOption.id); onClose(); },
+        keywords: ['theme', 'mode', themeOption.id, themeOption.name.toLowerCase()],
+        category: 'settings' as const,
+      })),
       
       // Events (searchable)
       ...events.map(event => ({
@@ -235,7 +251,7 @@ export function CommandPalette({
     ];
     
     return items;
-  }, [events, darkMode, onNewEvent, onSelectEvent, onExportAll, onImportClick, onToggleDarkMode, onClearAll, onApplyTemplate, onClose]);
+  }, [events, theme, t, onNewEvent, onSelectEvent, onExportAll, onImportClick, onChangeTheme, onClearAll, onClose]);
 
   // Filter commands based on query
   const filteredCommands = useMemo(() => {

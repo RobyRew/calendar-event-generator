@@ -157,7 +157,7 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
   return (
     <Card className="overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+      <div className="flex items-center justify-between p-4 border-b border-[rgb(var(--border))]">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={navigatePrev}>
             <ChevronLeft className="w-4 h-4" />
@@ -168,12 +168,12 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
           <Button variant="secondary" size="sm" onClick={goToToday}>
             Today
           </Button>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white ml-2">
+          <h2 className="text-lg font-semibold text-[rgb(var(--foreground))] ml-2">
             {getViewTitle()}
           </h2>
         </div>
         
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-[rgb(var(--accent))] rounded-lg p-1">
           {viewButtons.map(({ type, icon, label }) => (
             <button
               key={type}
@@ -181,8 +181,8 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
               className={`
                 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
                 ${viewType === type 
-                  ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
-                  : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-[rgb(var(--card))] text-[rgb(var(--foreground))] shadow-sm' 
+                  : 'text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))]'
                 }
               `}
               title={label}
@@ -202,13 +202,13 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
             {/* Day headers */}
             <div className="grid grid-cols-7 mb-1">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                <div key={day} className="text-center text-xs font-medium text-gray-500 dark:text-slate-400 py-2">
+                <div key={day} className="text-center text-xs font-medium text-[rgb(var(--muted-foreground))] py-2">
                   {day}
                 </div>
               ))}
             </div>
             {/* Days grid */}
-            <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-slate-700 rounded-lg overflow-hidden">
+            <div className="grid grid-cols-7 gap-px bg-[rgb(var(--border))] rounded-lg overflow-hidden">
               {monthDays.map(day => {
                 const dayEvents = getEventsForDay(day);
                 const isCurrentMonth = isSameMonth(day, currentDate);
@@ -219,14 +219,14 @@ export function CalendarView({ events, selectedEventId, onSelectEvent, onSelectD
                     key={day.toISOString()}
                     onClick={() => onSelectDate(day)}
                     className={`
-                      min-h-[80px] p-1 bg-white dark:bg-slate-800 cursor-pointer
-                      hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors
+                      min-h-[80px] p-1 bg-[rgb(var(--card))] cursor-pointer
+                      hover:bg-[rgb(var(--accent))] transition-colors
                       ${!isCurrentMonth ? 'opacity-40' : ''}
                     `}
                   >
                     <div className={`
                       text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full
-                      ${isSelected ? 'bg-primary-500 text-white' : 'text-gray-900 dark:text-white'}
+                      ${isSelected ? 'bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))]' : 'text-[rgb(var(--foreground))]'}
                     `}>
                       {format(day, 'd')}
                     </div>

@@ -20,11 +20,11 @@ export function EventList({ events, selectedEventId, onSelect, onDelete, onDupli
   if (events.length === 0) {
     return (
       <div className="text-center py-12">
-        <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-slate-600" />
-        <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-1">
+        <Calendar className="w-16 h-16 mx-auto mb-4 text-[rgb(var(--muted-foreground)/0.3)]" />
+        <h3 className="text-lg font-medium text-[rgb(var(--foreground))] mb-1">
           No events yet
         </h3>
-        <p className="text-gray-500 dark:text-slate-400">
+        <p className="text-[rgb(var(--muted-foreground))]">
           Create a new event or import an ICS file to get started.
         </p>
       </div>
@@ -67,24 +67,24 @@ export function EventList({ events, selectedEventId, onSelect, onDelete, onDupli
           padding="none"
           className={`
             cursor-pointer transition-all duration-200 overflow-hidden
-            hover:shadow-md hover:border-primary-300 dark:hover:border-primary-700
-            ${selectedEventId === event.uid ? 'ring-2 ring-primary-500 border-primary-500' : ''}
+            hover:shadow-md hover:border-[rgb(var(--primary)/0.5)]
+            ${selectedEventId === event.uid ? 'ring-2 ring-[rgb(var(--primary))] border-[rgb(var(--primary))]' : ''}
           `}
         >
           <div className="p-4" onClick={() => onSelect(event.uid)}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-gray-900 dark:text-slate-100 truncate">
+                <h4 className="font-medium text-[rgb(var(--foreground))] truncate">
                   {event.summary}
                 </h4>
                 
-                <div className="flex items-center gap-2 mt-1.5 text-sm text-gray-500 dark:text-slate-400">
+                <div className="flex items-center gap-2 mt-1.5 text-sm text-[rgb(var(--muted-foreground))]">
                   <Clock className="w-3.5 h-3.5 flex-shrink-0" />
                   <span className="truncate">{formatEventDate(event)}</span>
                 </div>
                 
                 {event.location?.text && (
-                  <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 dark:text-slate-400">
+                  <div className="flex items-center gap-2 mt-1 text-sm text-[rgb(var(--muted-foreground))]">
                     <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="truncate">{event.location.text}</span>
                   </div>
@@ -108,7 +108,7 @@ export function EventList({ events, selectedEventId, onSelect, onDelete, onDupli
             </div>
 
             {event.description && (
-              <p className="mt-2 text-sm text-gray-600 dark:text-slate-400 line-clamp-2">
+              <p className="mt-2 text-sm text-[rgb(var(--muted-foreground))] line-clamp-2">
                 {event.description}
               </p>
             )}
@@ -126,12 +126,12 @@ export function EventList({ events, selectedEventId, onSelect, onDelete, onDupli
             {/* Source file indicator with modification status */}
             {event.sourceFile && (
               <div className="flex items-center gap-1.5 mt-2 text-xs">
-                <FileText className="w-3 h-3 text-gray-400 dark:text-slate-500" />
-                <span className="text-gray-400 dark:text-slate-500 truncate">
+                <FileText className="w-3 h-3 text-[rgb(var(--muted-foreground)/0.7)]" />
+                <span className="text-[rgb(var(--muted-foreground)/0.7)] truncate">
                   From: {event.sourceFile}
                 </span>
                 {modified && (
-                  <span className="flex items-center gap-1 text-amber-500 dark:text-amber-400">
+                  <span className="flex items-center gap-1 text-amber-500">
                     <AlertCircle className="w-3 h-3" />
                     Modified
                   </span>
@@ -141,7 +141,7 @@ export function EventList({ events, selectedEventId, onSelect, onDelete, onDupli
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-1 px-3 py-2 bg-gray-50 dark:bg-slate-900/50 border-t border-gray-200 dark:border-slate-700">
+          <div className="flex items-center justify-end gap-1 px-3 py-2 bg-[rgb(var(--accent))] border-t border-[rgb(var(--border))]">
             <Button
               variant="ghost"
               size="sm"

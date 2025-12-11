@@ -3,7 +3,7 @@
  * Comprehensive form for creating/editing calendar events
  */
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { CalendarEvent, RecurrenceFrequency, WeekDay, EventClass, EventStatus, TimeTransparency, Alarm, COMMON_TIMEZONES } from '@/types';
 import { Button, Input, Textarea, Select, Checkbox, Card, Tabs, Badge } from '@/components/ui';
 import { Calendar, Clock, MapPin, Users, Bell, Repeat, Globe, Settings, Plus, Trash2, Apple } from 'lucide-react';
