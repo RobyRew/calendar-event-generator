@@ -242,6 +242,10 @@ export interface Translations {
   by: string;
   allRightsReserved: string;
   openSource: string;
+  
+  // Service Info
+  universalCalendarSupport: string;
+  serviceDescription: string;
 }
 
 // Import locale files

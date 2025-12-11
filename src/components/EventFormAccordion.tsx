@@ -7,6 +7,7 @@ import { useState, useCallback } from 'react';
 import { CalendarEvent, RecurrenceFrequency, WeekDay, EventClass, EventStatus, TimeTransparency, Alarm, COMMON_TIMEZONES } from '@/types';
 import { Button, Input, Textarea, Select, Checkbox, Card, Badge } from '@/components/ui';
 import { Calendar, Clock, MapPin, Users, Bell, Repeat, Globe, Settings, Plus, Trash2, Apple, ChevronDown } from 'lucide-react';
+import { useI18n } from '@/context/I18nContext';
 
 interface EventFormProps {
   event: CalendarEvent;
@@ -111,6 +112,7 @@ function AccordionSection({ title, icon, isOpen, onToggle, children, badge }: Ac
 }
 
 export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps) {
+  const { t } = useI18n();
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['basic', 'datetime']));
   const [categoriesInput, setCategoriesInput] = useState(event.categories?.join(', ') || '');
 
@@ -673,6 +675,23 @@ export function EventForm({ event, onChange, onSave, onCancel }: EventFormProps)
           </Card>
         </div>
       </AccordionSection>
+
+      {/* Service Info */}
+      <div className="mt-6 p-4 bg-[rgb(var(--accent))] rounded-xl border border-[rgb(var(--border))]">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-[rgb(var(--primary))] flex items-center justify-center shrink-0">
+            <Calendar className="w-5 h-5 text-[rgb(var(--primary-foreground))]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm text-[rgb(var(--foreground))]">
+              {t.universalCalendarSupport}
+            </p>
+            <p className="text-xs text-[rgb(var(--muted-foreground))] mt-1">
+              {t.serviceDescription}
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Actions - Sticky on mobile */}
       <div className="sticky bottom-0 -mx-4 -mb-4 px-4 py-3 bg-[rgb(var(--card))] border-t border-[rgb(var(--border))] flex gap-3 sm:static sm:mx-0 sm:mb-0 sm:px-0 sm:border-0 sm:pt-4">

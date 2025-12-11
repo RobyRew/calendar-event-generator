@@ -240,4 +240,8 @@ export const es: Translations = {
   by: 'por',
   allRightsReserved: 'Todos los derechos reservados',
   openSource: 'Código Abierto',
+  
+  // Service Info
+  universalCalendarSupport: 'Soporte Universal de Calendario',
+  serviceDescription: 'Exporta tu evento a Apple Calendar, Google Calendar o Microsoft Outlook. Compatibilidad total con ICS para todas las aplicaciones de calendario.',
 };

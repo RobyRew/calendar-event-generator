@@ -240,4 +240,8 @@ export const fr: Translations = {
   by: 'par',
   allRightsReserved: 'Tous droits réservés',
   openSource: 'Open Source',
+  
+  // Service Info
+  universalCalendarSupport: 'Support Calendrier Universel',
+  serviceDescription: 'Exportez votre événement vers Apple Calendrier, Google Agenda ou Microsoft Outlook. Compatibilité ICS complète avec toutes les applications de calendrier.',
 };
