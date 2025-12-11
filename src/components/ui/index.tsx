@@ -19,10 +19,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
     
     const variants = {
-      primary: 'bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500',
-      secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600',
-      outline: 'border-2 border-primary-500 text-primary-500 hover:bg-primary-50 focus:ring-primary-500 dark:hover:bg-primary-900/20',
-      ghost: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-500 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100',
+      primary: 'bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] hover:opacity-90 focus:ring-[rgb(var(--primary))]',
+      secondary: 'bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] hover:opacity-80 focus:ring-[rgb(var(--border))]',
+      outline: 'border-2 border-[rgb(var(--primary))] text-[rgb(var(--primary))] hover:bg-[rgb(var(--accent))] focus:ring-[rgb(var(--primary))]',
+      ghost: 'text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))] hover:text-[rgb(var(--foreground))] focus:ring-[rgb(var(--border))]',
       danger: 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-500',
     };
 
@@ -70,7 +70,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+          <label htmlFor={inputId} className="block text-sm font-medium text-[rgb(var(--foreground))] mb-1">
             {label}
           </label>
         )}
@@ -79,19 +79,19 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           className={`
             w-full px-3 py-2 rounded-lg border transition-colors duration-200
-            bg-white dark:bg-slate-800 
-            border-gray-300 dark:border-slate-600
-            text-gray-900 dark:text-slate-100
-            placeholder:text-gray-400 dark:placeholder:text-slate-500
-            focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20
-            disabled:bg-gray-100 disabled:cursor-not-allowed dark:disabled:bg-slate-700
+            bg-[rgb(var(--card))]
+            border-[rgb(var(--border))]
+            text-[rgb(var(--foreground))]
+            placeholder:text-[rgb(var(--muted-foreground))]
+            focus:border-[rgb(var(--primary))] focus:ring-2 focus:ring-[rgb(var(--primary)/0.2)]
+            disabled:bg-[rgb(var(--muted))] disabled:cursor-not-allowed
             ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
             ${className}
           `}
           {...props}
         />
         {hint && !error && (
-          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">{hint}</p>
+          <p className="mt-1 text-sm text-[rgb(var(--muted-foreground))]">{hint}</p>
         )}
         {error && (
           <p className="mt-1 text-sm text-red-500">{error}</p>
@@ -120,7 +120,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={textareaId} className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+          <label htmlFor={textareaId} className="block text-sm font-medium text-[rgb(var(--foreground))] mb-1">
             {label}
           </label>
         )}
@@ -129,19 +129,19 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           id={textareaId}
           className={`
             w-full px-3 py-2 rounded-lg border transition-colors duration-200 resize-y min-h-[100px]
-            bg-white dark:bg-slate-800 
-            border-gray-300 dark:border-slate-600
-            text-gray-900 dark:text-slate-100
-            placeholder:text-gray-400 dark:placeholder:text-slate-500
-            focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20
-            disabled:bg-gray-100 disabled:cursor-not-allowed dark:disabled:bg-slate-700
+            bg-[rgb(var(--card))]
+            border-[rgb(var(--border))]
+            text-[rgb(var(--foreground))]
+            placeholder:text-[rgb(var(--muted-foreground))]
+            focus:border-[rgb(var(--primary))] focus:ring-2 focus:ring-[rgb(var(--primary)/0.2)]
+            disabled:bg-[rgb(var(--muted))] disabled:cursor-not-allowed
             ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
             ${className}
           `}
           {...props}
         />
         {hint && !error && (
-          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">{hint}</p>
+          <p className="mt-1 text-sm text-[rgb(var(--muted-foreground))]">{hint}</p>
         )}
         {error && (
           <p className="mt-1 text-sm text-red-500">{error}</p>
@@ -170,7 +170,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={selectId} className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+          <label htmlFor={selectId} className="block text-sm font-medium text-[rgb(var(--foreground))] mb-1">
             {label}
           </label>
         )}
@@ -179,11 +179,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           id={selectId}
           className={`
             w-full px-3 py-2 rounded-lg border transition-colors duration-200
-            bg-white dark:bg-slate-800 
-            border-gray-300 dark:border-slate-600
-            text-gray-900 dark:text-slate-100
-            focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20
-            disabled:bg-gray-100 disabled:cursor-not-allowed dark:disabled:bg-slate-700
+            bg-[rgb(var(--card))]
+            border-[rgb(var(--border))]
+            text-[rgb(var(--foreground))]
+            focus:border-[rgb(var(--primary))] focus:ring-2 focus:ring-[rgb(var(--primary)/0.2)]
+            disabled:bg-[rgb(var(--muted))] disabled:cursor-not-allowed
             ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
             ${className}
           `}
@@ -224,14 +224,14 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           type="checkbox"
           id={checkboxId}
           className={`
-            w-4 h-4 rounded border-gray-300 dark:border-slate-600
-            text-primary-500 focus:ring-primary-500 focus:ring-offset-0
-            dark:bg-slate-800
+            w-4 h-4 rounded border-[rgb(var(--border))]
+            text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))] focus:ring-offset-0
+            bg-[rgb(var(--card))]
             ${className}
           `}
           {...props}
         />
-        <span className="text-sm text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">
+        <span className="text-sm text-[rgb(var(--muted-foreground))] group-hover:text-[rgb(var(--foreground))]">
           {label}
         </span>
       </label>
@@ -261,9 +261,9 @@ export function Card({ children, className = '', padding = 'md' }: CardProps) {
 
   return (
     <div className={`
-      bg-white dark:bg-slate-800 
+      bg-[rgb(var(--card))] 
       rounded-xl 
-      border border-gray-200 dark:border-slate-700
+      border border-[rgb(var(--border))]
       shadow-sm
       ${paddings[padding]}
       ${className}
@@ -292,7 +292,7 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange, className = '' }: TabsProps) {
   return (
-    <div className={`flex border-b border-gray-200 dark:border-slate-700 ${className}`}>
+    <div className={`flex border-b border-[rgb(var(--border))] ${className}`}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -301,8 +301,8 @@ export function Tabs({ tabs, activeTab, onChange, className = '' }: TabsProps) {
             flex items-center gap-2 px-4 py-2.5 text-sm font-medium
             border-b-2 -mb-px transition-colors duration-200
             ${activeTab === tab.id
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-slate-400 dark:hover:text-slate-200'
+              ? 'border-[rgb(var(--primary))] text-[rgb(var(--primary))]'
+              : 'border-transparent text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] hover:border-[rgb(var(--border))]'
             }
           `}
         >
@@ -326,8 +326,8 @@ interface BadgeProps {
 
 export function Badge({ children, variant = 'default', className = '' }: BadgeProps) {
   const variants = {
-    default: 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300',
-    primary: 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400',
+    default: 'bg-[rgb(var(--accent))] text-[rgb(var(--foreground))]',
+    primary: 'bg-[rgb(var(--primary)/0.2)] text-[rgb(var(--primary))]',
     success: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
     warning: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
     danger: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -341,7 +341,7 @@ export function Badge({ children, variant = 'default', className = '' }: BadgePr
 }
 
 // ============================================================
-// ALERT
+// TOAST / ALERT
 // ============================================================
 
 interface AlertProps {
@@ -349,23 +349,98 @@ interface AlertProps {
   variant?: 'info' | 'success' | 'warning' | 'error';
   onClose?: () => void;
   className?: string;
+  autoHide?: boolean;
+  autoHideDelay?: number;
 }
 
-export function Alert({ children, variant = 'info', onClose, className = '' }: AlertProps) {
-  const variants = {
-    info: 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
-    success: 'bg-green-50 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
-    warning: 'bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800',
-    error: 'bg-red-50 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
+export function Alert({ 
+  children, 
+  variant = 'info', 
+  onClose, 
+  className = '',
+  autoHide = true,
+  autoHideDelay = 3000
+}: AlertProps) {
+  const [isVisible] = React.useState(true);
+  const [isLeaving, setIsLeaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (autoHide && onClose) {
+      const timer = setTimeout(() => {
+        setIsLeaving(true);
+        setTimeout(() => {
+          onClose();
+        }, 300);
+      }, autoHideDelay);
+      return () => clearTimeout(timer);
+    }
+  }, [autoHide, autoHideDelay, onClose]);
+
+  const handleClose = () => {
+    setIsLeaving(true);
+    setTimeout(() => {
+      onClose?.();
+    }, 300);
   };
 
+  const variants = {
+    info: {
+      bg: 'bg-blue-500 dark:bg-blue-600',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    success: {
+      bg: 'bg-emerald-500 dark:bg-emerald-600',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    warning: {
+      bg: 'bg-amber-500 dark:bg-amber-600',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+    },
+    error: {
+      bg: 'bg-red-500 dark:bg-red-600',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+  };
+
+  if (!isVisible) return null;
+
   return (
-    <div className={`flex items-center justify-between p-4 rounded-lg border ${variants[variant]} ${className}`}>
-      <span className="text-sm">{children}</span>
+    <div 
+      className={`
+        flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg
+        ${variants[variant].bg} text-white
+        transform transition-all duration-300 ease-out
+        ${isLeaving ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'}
+        animate-slide-in-right
+        ${className}
+      `}
+      role="alert"
+    >
+      <span className="flex-shrink-0">
+        {variants[variant].icon}
+      </span>
+      <span className="text-sm font-medium flex-1">{children}</span>
       {onClose && (
         <button
-          onClick={onClose}
-          className="ml-4 text-current opacity-60 hover:opacity-100 transition-opacity"
+          onClick={handleClose}
+          className="flex-shrink-0 ml-2 p-1 rounded-full hover:bg-white/20 transition-colors"
+          aria-label="Close notification"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -399,7 +474,7 @@ export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
       {children}
       <div className={`
         absolute ${positions[position]} z-50
-        px-2 py-1 text-xs text-white bg-gray-900 dark:bg-slate-700 rounded
+        px-2 py-1 text-xs text-[rgb(var(--primary-foreground))] bg-[rgb(var(--foreground))] rounded
         opacity-0 invisible group-hover:opacity-100 group-hover:visible
         transition-all duration-200 whitespace-nowrap
         pointer-events-none
@@ -409,3 +484,6 @@ export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
     </div>
   );
 }
+
+// Re-export SplitButton
+export { SplitButton } from './SplitButton';
