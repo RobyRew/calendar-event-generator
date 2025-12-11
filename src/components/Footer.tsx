@@ -1,9 +1,9 @@
 /**
  * Footer Component
- * App footer with credits and links
+ * Minimal on mobile, expanded on desktop
  */
 
-import { Github, Heart, Calendar } from 'lucide-react';
+import { Github, Heart } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
 
 export function Footer() {
@@ -11,67 +11,49 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-[rgb(var(--border))] bg-[rgb(var(--background))]">
-      <div className="container mx-auto px-4 py-8">
-        {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          {/* Brand */}
-          <div className="flex flex-col items-center md:items-start">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))]">
-                <Calendar className="w-4 h-4" />
-              </div>
-              <span className="font-semibold text-[rgb(var(--foreground))]">
-                {t.appName}
-              </span>
-            </div>
-            <p className="text-sm text-[rgb(var(--muted-foreground))] text-center md:text-left">
-              {t.appDescription}
-            </p>
-          </div>
-
-          {/* Features */}
-          <div className="flex flex-col items-center md:items-start">
-            <h3 className="font-medium text-[rgb(var(--foreground))] mb-3">
-              {t.features}
-            </h3>
-            <ul className="space-y-1.5 text-sm text-[rgb(var(--muted-foreground))] text-center md:text-left">
-              <li>{t.importExportICS}</li>
-              <li>{t.appleCalendarSupport}</li>
-              <li>{t.googleCalendarSupport}</li>
-              <li>{t.recurringEvents}</li>
-            </ul>
-          </div>
-
-          {/* Links */}
-          <div className="flex flex-col items-center md:items-start">
-            <h3 className="font-medium text-[rgb(var(--foreground))] mb-3">
-              {t.about}
-            </h3>
-            <ul className="space-y-1.5 text-sm">
-              <li>
-                <a
-                  href="https://github.com/RobyRew/calendar-event-generator"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors"
-                >
-                  <Github className="w-4 h-4" />
-                  {t.viewOnGitHub}
-                </a>
-              </li>
-              <li>
-                <span className="text-[rgb(var(--muted-foreground))]">
-                  {t.version} 1.0.0
-                </span>
-              </li>
-            </ul>
-          </div>
+    <footer className="border-t border-[rgb(var(--border))] bg-[rgb(var(--background))] mt-8">
+      {/* Mobile Footer - Compact */}
+      <div className="sm:hidden py-4 px-4">
+        <div className="flex items-center justify-between text-xs text-[rgb(var(--muted-foreground))]">
+          <p className="flex items-center gap-1">
+            <Heart className="w-3 h-3 text-red-500 fill-red-500" />
+            <a
+              href="https://github.com/RobyRew"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium hover:text-[rgb(var(--foreground))]"
+            >
+              RobyRew
+            </a>
+          </p>
+          <a
+            href="https://github.com/RobyRew/calendar-event-generator"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 hover:text-[rgb(var(--foreground))]"
+          >
+            <Github className="w-3.5 h-3.5" />
+            GitHub
+          </a>
         </div>
+      </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-6 border-t border-[rgb(var(--border))]">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* Desktop Footer - Full */}
+      <div className="hidden sm:block">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* Left - Brand & Description */}
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-[rgb(var(--muted-foreground))]">
+                {t.appName}
+              </p>
+              <span className="text-[rgb(var(--border))]">•</span>
+              <p className="text-sm text-[rgb(var(--muted-foreground))]">
+                {t.version} 1.0.0
+              </p>
+            </div>
+
+            {/* Center - Credits */}
             <p className="text-sm text-[rgb(var(--muted-foreground))] flex items-center gap-1">
               {t.madeWith} <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" /> {t.by}{' '}
               <a
@@ -83,9 +65,22 @@ export function Footer() {
                 RobyRew
               </a>
             </p>
-            <p className="text-sm text-[rgb(var(--muted-foreground))]">
-              © {currentYear} {t.allRightsReserved}
-            </p>
+
+            {/* Right - Links */}
+            <div className="flex items-center gap-4">
+              <a
+                href="https://github.com/RobyRew/calendar-event-generator"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors"
+              >
+                <Github className="w-4 h-4" />
+                {t.viewOnGitHub}
+              </a>
+              <span className="text-xs text-[rgb(var(--muted-foreground))]">
+                © {currentYear}
+              </span>
+            </div>
           </div>
         </div>
       </div>
