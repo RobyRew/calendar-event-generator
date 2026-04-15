@@ -54,7 +54,7 @@ export function EventList() {
     }
   }
 
-  if (events.length === 0) {
+  if (events.length === 0 && !isEditorOpen) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
         <CalIcon size={48} className="text-text-3 mb-4" />
