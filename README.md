@@ -8,7 +8,9 @@
 ![Vite](https://img.shields.io/badge/Vite-6.4-646CFF?logo=vite)
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue)
 
-### 🔗 [Live Demo → robyryw.github.io/calendar-event-generator](https://robyrew.github.io/calendar-event-generator/)
+### 🔗 [Live Demo → robyrew.github.io/calendar-event-generator](https://robyrew.github.io/calendar-event-generator/)
+
+<img width="572" height="446" alt="image" src="https://github.com/user-attachments/assets/aaad9f5f-6b41-4f06-b5b7-7db11165b058" />
 
 ## ⭐ Star this repo if you find it useful!
 
