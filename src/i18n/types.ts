@@ -1,198 +1,353 @@
-/**
- * i18n Types
- */
-
-export type Language = 'en' | 'es' | 'de' | 'fr' | 'it' | 'pt' | 'zh' | 'ja' | 'ko' | 'ru';
-
 export interface Translations {
   // App
-  appName: string;
-  appDescription: string;
-  
+  appName: string
+  appDescription: string
+
+  // Navigation
+  events: string
+  calendar: string
+  templates: string
+  importExport: string
+  settings: string
+  search: string
+
   // Actions
-  newEvent: string;
-  newBlankEvent: string;
-  newFromTemplate: string;
-  editEvent: string;
-  deleteEvent: string;
-  duplicateEvent: string;
-  save: string;
-  cancel: string;
-  close: string;
-  import: string;
-  export: string;
-  search: string;
-  filter: string;
-  clear: string;
-  clearAll: string;
-  undo: string;
-  redo: string;
-  
-  // Import/Export
-  importICS: string;
-  importFromFile: string;
-  exportAllEvents: string;
-  exportSelectedEvent: string;
-  exportOptions: string;
-  noEventSelected: string;
-  selectedEventLabel: string;
-  
-  // Views
-  listView: string;
-  calendarView: string;
-  monthView: string;
-  weekView: string;
-  dayView: string;
-  agendaView: string;
-  
-  // Event Fields
-  eventTitle: string;
-  eventDescription: string;
-  location: string;
-  startDate: string;
-  endDate: string;
-  allDay: string;
-  timezone: string;
-  reminders: string;
-  addReminder: string;
-  recurrence: string;
-  categories: string;
-  url: string;
-  notes: string;
-  attendees: string;
-  organizer: string;
-  status: string;
-  priority: string;
-  color: string;
-  
+  save: string
+  cancel: string
+  delete: string
+  duplicate: string
+  edit: string
+  create: string
+  export_: string
+  import_: string
+  close: string
+  add: string
+  remove: string
+  clear: string
+  confirm: string
+  undo: string
+  redo: string
+  selectAll: string
+  deselectAll: string
+  done: string
+  apply: string
+  reset: string
+
+  // Event form
+  newEvent: string
+  editEvent: string
+  eventTitle: string
+  eventTitlePlaceholder: string
+  description: string
+  descriptionPlaceholder: string
+  allDay: string
+  startDate: string
+  endDate: string
+  startTime: string
+  endTime: string
+  duration: string
+  timezone: string
+  color: string
+  url: string
+  urlPlaceholder: string
+  notes: string
+  comment: string
+  categories: string
+  categoriesPlaceholder: string
+  priority: string
+  priorityNone: string
+  priorityLow: string
+  priorityMedium: string
+  priorityHigh: string
+
+  // Location
+  location: string
+  locationPlaceholder: string
+  coordinates: string
+  latitude: string
+  longitude: string
+  endLocation: string
+
+  // Status
+  status: string
+  confirmed: string
+  tentative: string
+  cancelled: string
+  classification: string
+  public_: string
+  private_: string
+  confidential: string
+  availability: string
+  busy: string
+  free: string
+
+  // Recurrence
+  recurrence: string
+  noRepeat: string
+  daily: string
+  weekly: string
+  monthly: string
+  yearly: string
+  every: string
+  interval: string
+  repeatEvery: string
+  endsNever: string
+  endsAfter: string
+  endsOn: string
+  occurrences: string
+  repeatOn: string
+  exceptions: string
+  addException: string
+
+  // Week days
+  sunday: string
+  monday: string
+  tuesday: string
+  wednesday: string
+  thursday: string
+  friday: string
+  saturday: string
+  sundayShort: string
+  mondayShort: string
+  tuesdayShort: string
+  wednesdayShort: string
+  thursdayShort: string
+  fridayShort: string
+  saturdayShort: string
+
+  // Reminders
+  reminders: string
+  addReminder: string
+  noReminders: string
+  atTimeOfEvent: string
+  minutesBefore: string
+  hoursBefore: string
+  daysBefore: string
+  weeksBefore: string
+  alarmDisplay: string
+  alarmEmail: string
+  alarmAudio: string
+  alarmSound: string
+  defaultAlarm: string
+
+  // Attendees
+  attendees: string
+  addAttendee: string
+  noAttendees: string
+  organizer: string
+  organizerName: string
+  organizerEmail: string
+  attendeeName: string
+  attendeeEmail: string
+  attendeeRole: string
+  attendeeStatus: string
+  roleChair: string
+  roleRequired: string
+  roleOptional: string
+  roleNonParticipant: string
+  statusNeedsAction: string
+  statusAccepted: string
+  statusDeclined: string
+  statusTentative: string
+  statusDelegated: string
+  rsvp: string
+
+  // Attachments
+  attachments: string
+  addAttachment: string
+  attachmentUrl: string
+
+  // Advanced
+  advanced: string
+  sequence: string
+  relatedTo: string
+  resources: string
+  contact: string
+  appleExtensions: string
+  googleExtensions: string
+  microsoftExtensions: string
+  travelAdvisory: string
+  travelAutomatic: string
+  travelDisabled: string
+  travelEnabled: string
+  creatorIdentity: string
+
   // Templates
-  templates: string;
-  useTemplate: string;
-  saveAsTemplate: string;
-  importTemplate: string;
-  exportTemplate: string;
-  templateName: string;
-  noTemplates: string;
-  templateSaved: string;
-  templateDeleted: string;
-  customTemplates: string;
-  builtInTemplates: string;
-  selectTemplate: string;
-  createEvent: string;
-  blank: string;
-  modified: string;
-  fromFile: string;
-  expandAll: string;
-  collapseAll: string;
-  verticalLayout: string;
-  tabLayout: string;
-  
-  // Template Names
-  templateMeeting: string;
-  templateCall: string;
-  templateLunch: string;
-  templateWorkout: string;
-  templateFocus: string;
-  templateBirthday: string;
-  templateReminder: string;
-  templateTravel: string;
-  templateDeadline: string;
-  templateAppointment: string;
-  
-  // Export
-  exportFormat: string;
-  exportICS: string;
-  exportJSON: string;
-  exportMarkdown: string;
-  exportCSV: string;
-  exportGoogleCalendar: string;
-  exportOutlook: string;
-  exportAppleCalendar: string;
-  exportAll: string;
-  exportSelected: string;
-  
-  // Import
-  importFile: string;
-  importTemplateFile: string;
-  dragDropImport: string;
-  
-  // Command Palette
-  quickActions: string;
-  typeToSearch: string;
-  noResults: string;
-  actions: string;
-  events: string;
-  settings: string;
-  
+  templateName: string
+  templateDescription: string
+  builtInTemplates: string
+  customTemplates: string
+  saveAsTemplate: string
+  createFromTemplate: string
+  noTemplates: string
+  meeting: string
+  appointment: string
+  birthday: string
+  holiday: string
+  reminder: string
+  travel: string
+  deadline: string
+  socialEvent: string
+  workout: string
+  meal: string
+
+  // Import/Export
+  importFile: string
+  exportFile: string
+  importICS: string
+  exportICS: string
+  exportJSON: string
+  importJSON: string
+  googleCalendarUrl: string
+  outlookUrl: string
+  appleCalendar: string
+  dragDropHint: string
+  importSuccess: string
+  exportSuccess: string
+  importError: string
+  noEventsToExport: string
+  selectedEvents: string
+  allEvents: string
+
+  // Calendar
+  today: string
+  month: string
+  week: string
+  day: string
+  agenda: string
+  noEvents: string
+  eventsCount: string
+  weekNumber: string
+  previousMonth: string
+  nextMonth: string
+  previousWeek: string
+  nextWeek: string
+  previousDay: string
+  nextDay: string
+
   // Settings
-  language: string;
-  darkMode: string;
-  lightMode: string;
-  theme: string;
-  
-  // Messages
-  eventCreated: string;
-  eventUpdated: string;
-  eventDeleted: string;
-  eventDuplicated: string;
-  eventsImported: string;
-  exportSuccess: string;
-  errorOccurred: string;
-  confirmDelete: string;
-  confirmClearAll: string;
-  noEvents: string;
-  
+  appearance: string
+  theme: string
+  themeSystem: string
+  themeLight: string
+  themeDark: string
+  themeOled: string
+  language: string
+  english: string
+  spanish: string
+  romanian: string
+  timeAndDate: string
+  timeFormat: string
+  timeFormat12: string
+  timeFormat24: string
+  dateFormatSetting: string
+  firstDayOfWeek: string
+  showWeekNumbers: string
+  defaults: string
+  defaultDuration: string
+  defaultTimezone: string
+  defaultReminder: string
+  noDefaultReminder: string
+  defaultColor: string
+  defaultView: string
+  defaultStatus: string
+  defaultClassification: string
+  minuteSnap: string
+  behavior: string
+  confirmDelete: string
+  autoSave: string
+  autoSaveOff: string
+  autoSaveSeconds: string
+  compactCards: string
+  appleExport: string
+  showDeclined: string
+  weekendDays: string
+  dataManagement: string
+  storageUsed: string
+  eventCount: string
+  clearAllData: string
+  clearAllDataConfirm: string
+  exportAllData: string
+  importAllData: string
+  about: string
+  version: string
+  privacyNote: string
+
+  // Search
+  searchPlaceholder: string
+  searchEvents: string
+  noResults: string
+  filterByCategory: string
+  filterByStatus: string
+
+  // Command palette
+  commandPalette: string
+  typeCommand: string
+
+  // Confirmations
+  deleteConfirm: string
+  deleteEventConfirm: string
+  clearDataConfirm: string
+
+  // Errors
+  invalidDate: string
+  titleRequired: string
+  endBeforeStart: string
+  importFailed: string
+
   // Time
-  today: string;
-  tomorrow: string;
-  yesterday: string;
-  thisWeek: string;
-  nextWeek: string;
-  thisMonth: string;
-  
-  // Days
-  monday: string;
-  tuesday: string;
-  wednesday: string;
-  thursday: string;
-  friday: string;
-  saturday: string;
-  sunday: string;
-  
-  // Short Days
-  mon: string;
-  tue: string;
-  wed: string;
-  thu: string;
-  fri: string;
-  sat: string;
-  sun: string;
-  
-  // Months
-  january: string;
-  february: string;
-  march: string;
-  april: string;
-  may: string;
-  june: string;
-  july: string;
-  august: string;
-  september: string;
-  october: string;
-  november: string;
-  december: string;
-  
-  // Features
-  features: string;
-  keyboardShortcuts: string;
-  importExportICS: string;
-  appleCalendarSupport: string;
-  googleCalendarSupport: string;
-  outlookSupport: string;
-  recurringEvents: string;
-  multipleReminders: string;
-  timezoneSupport: string;
-  geolocation: string;
-  allDayEvents: string;
-  eventCategories: string;
+  am: string
+  pm: string
+  hours: string
+  minutes: string
+  days: string
+  weeks: string
+
+  // Additional UI
+  export: string
+  import: string
+  shareLinks: string
+  selectEvent: string
+  selectSingleEvent: string
+  noEventsInFile: string
+  importFileDesc: string
+  exportError: string
+  newTemplate: string
+  noTemplatesDesc: string
+  templateNamePlaceholder: string
+  deleteTemplateConfirm: string
+  resetSettingsConfirm: string
+  clearAllConfirm: string
+  navigation: string
+  actions: string
+  tomorrow: string
+  yesterday: string
+  systemTheme: string
+  lightTheme: string
+  darkTheme: string
+  oledTheme: string
+  compactCardsDesc: string
+  timeDate: string
+  snapMinutesTo: string
+  exportWithApple: string
+  exportWithAppleDesc: string
+  stripPersonalData: string
+  stripPersonalDataDesc: string
+  resetSettings: string
+  exportBackup: string
+  importBackup: string
+  confirmBeforeDelete: string
+  noReminder: string
+  importAsEvents: string
+  importAsTemplates: string
+  importChoice: string
+  selectedCount: string
+  selectEventsToExport: string
+  exportSelected: string
+  editThisEvent: string
+  duplicateEvent: string
+  exportAsICS: string
+  deleteThisEvent: string
+  unsavedChanges: string
+  discardChanges: string
 }

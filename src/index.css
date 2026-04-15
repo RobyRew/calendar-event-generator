@@ -1,287 +1,196 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* ============================================
-   BASE STYLES - MOBILE FIRST
-   ============================================ */
+@theme {
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-border: var(--border-clr);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-text: var(--accent-text);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
 
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  --shadow-xs: var(--shadow-xs-val);
+  --shadow-sm: var(--shadow-sm-val);
+  --shadow-md: var(--shadow-md-val);
+  --shadow-lg: var(--shadow-lg-val);
+
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.25s ease-out;
+  --animate-slide-down: slide-down 0.25s ease-out;
+  --animate-scale-in: scale-in 0.15s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slide-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes slide-down {
+  from { transform: translateY(-8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes scale-in {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ── Light theme (default) ── */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --surface: #ffffff;
+  --surface-2: #f2f2f7;
+  --surface-3: #e5e5ea;
+  --text: #000000;
+  --text-2: #3c3c43;
+  --text-3: #8e8e93;
+  --border-clr: #c6c6c8;
+  --accent: #007aff;
+  --accent-hover: #0056b3;
+  --accent-text: #ffffff;
+  --danger: #ff3b30;
+  --danger-hover: #d32f2f;
+  --success: #34c759;
+  --warning: #ff9500;
+  --shadow-xs-val: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm-val: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md-val: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg-val: 0 8px 28px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Dark theme ── */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1c1c1e;
+  --surface-2: #2c2c2e;
+  --surface-3: #3a3a3c;
+  --text: #f5f5f7;
+  --text-2: #ebebf5;
+  --text-3: #8e8e93;
+  --border-clr: #38383a;
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
+  --accent-text: #ffffff;
+  --danger: #ff453a;
+  --danger-hover: #ff6961;
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --shadow-xs-val: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm-val: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md-val: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg-val: 0 8px 28px rgba(0, 0, 0, 0.4);
+}
+
+/* ── OLED theme ── */
+[data-theme="oled"] {
+  color-scheme: dark;
+  --surface: #000000;
+  --surface-2: #1c1c1e;
+  --surface-3: #2c2c2e;
+  --text: #ffffff;
+  --text-2: #ebebf5;
+  --text-3: #8e8e93;
+  --border-clr: #1c1c1e;
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
+  --accent-text: #ffffff;
+  --danger: #ff453a;
+  --danger-hover: #ff6961;
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --shadow-xs-val: none;
+  --shadow-sm-val: none;
+  --shadow-md-val: none;
+  --shadow-lg-val: none;
+}
+
+/* ── Base styles ── */
 * {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  /* Prevent text size adjustment on orientation change */
-  -webkit-text-size-adjust: 100%;
-}
-
-html {
-  scroll-behavior: smooth;
-  /* Prevent overscroll bounce on iOS */
-  overscroll-behavior: none;
-  /* Better touch scrolling */
-  -webkit-overflow-scrolling: touch;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', Roboto, sans-serif;
-  background: rgb(var(--background));
-  color: rgb(var(--foreground));
-  /* Use dvh for proper mobile viewport handling */
-  min-height: 100vh;
-  min-height: 100dvh;
-  line-height: 1.6;
-  transition: background-color 0.3s ease, color 0.3s ease;
-  /* Prevent pull-to-refresh on mobile */
-  overscroll-behavior-y: contain;
-  /* Safe area insets for notched devices */
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-}
-
-/* Safe area handling for bottom navigation */
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* ============================================
-   MOBILE VIEWPORT UTILITIES
-   ============================================ */
-
-.h-screen-safe {
-  height: 100vh;
-  height: 100dvh;
-}
-
-.min-h-screen-safe {
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-.max-h-screen-safe {
-  max-height: 100vh;
-  max-height: 100dvh;
-}
-
-/* ============================================
-   TOUCH OPTIMIZATIONS
-   ============================================ */
-
-/* Minimum touch target size (44x44px per Apple HIG) */
-.touch-target {
-  min-height: 44px;
-  min-width: 44px;
-}
-
-/* Prevent tap highlight on mobile */
-button, a, [role="button"] {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Better touch response */
-.touch-manipulation {
-  touch-action: manipulation;
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
-/* ============================================
-   SCROLLBAR - Minimal and theme-aware
-   ============================================ */
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--surface);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
+/* Safe area insets for iOS */
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-left { padding-left: env(safe-area-inset-left); }
+.safe-right { padding-right: env(safe-area-inset-right); }
+
+/* Scrollbar styling for macOS Safari */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--muted-foreground) / 0.3);
+  background: var(--text-3);
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--muted-foreground) / 0.5);
+  background: var(--text-2);
 }
 
-/* ============================================
-   FORM ELEMENTS
-   ============================================ */
-
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgb(var(--ring) / 0.5);
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
-input[type="checkbox"] {
-  accent-color: rgb(var(--primary));
+/* Input reset for Safari */
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+input[type="date"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-/* ============================================
-   UTILITY CLASSES
-   ============================================ */
-
-.transition-base {
-  transition: all 0.2s ease-in-out;
-}
-
-.transition-theme {
-  transition: 
-    background-color 0.3s ease,
-    border-color 0.3s ease,
-    color 0.3s ease,
-    box-shadow 0.3s ease;
-}
-
-/* Glass effect utility */
-.glass {
-  background: rgb(var(--card) / var(--glass-opacity, 0.8));
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgb(var(--border) / 0.5);
-}
-
-/* ============================================
-   GRADIENT BACKGROUNDS
-   ============================================ */
-
-.gradient-primary {
-  background: linear-gradient(135deg, rgb(var(--primary)) 0%, rgb(var(--primary) / 0.8) 100%);
-}
-
-/* Default gradient mesh (overridden by themes) */
-.gradient-mesh {
-  background: rgb(var(--background));
-  transition: background 0.5s ease;
-}
-
-/* ============================================
-   ANIMATIONS
-   ============================================ */
-
-@keyframes slide-up {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
+/* Prevent pull-to-refresh on iOS */
+@supports (-webkit-touch-callout: none) {
+  body {
+    overscroll-behavior-y: none;
   }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slide-in-right {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes scale-in {
-  from {
-    transform: scale(0.95);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes accordion-down {
-  from {
-    height: 0;
-    opacity: 0;
-  }
-  to {
-    height: var(--radix-accordion-content-height, auto);
-    opacity: 1;
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 5px rgb(var(--primary) / 0.3);
-  }
-  50% {
-    box-shadow: 0 0 20px rgb(var(--primary) / 0.5);
-  }
-}
-
-/* Animation classes */
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
-}
-
-.animate-slide-in-right {
-  animation: slide-in-right 0.3s ease-out;
-}
-
-.animate-fade-in {
-  animation: fade-in 0.2s ease-out;
-}
-
-.animate-scale-in {
-  animation: scale-in 0.2s ease-out;
-}
-
-.animate-accordion-down {
-  animation: accordion-down 0.2s ease-out;
-}
-
-.animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgb(var(--muted)) 0%,
-    rgb(var(--muted-foreground) / 0.1) 50%,
-    rgb(var(--muted)) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-/* ============================================
-   FOCUS RING UTILITY (for accessibility)
-   ============================================ */
-.focus-ring:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgb(var(--background)), 0 0 0 4px rgb(var(--primary) / 0.5);
-}
-
-/* ============================================
-   SELECT DROPDOWN ARROW (consistent across browsers)
-   ============================================ */
-select {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 0.5rem center;
-  background-repeat: no-repeat;
-  background-size: 1.5em 1.5em;
 }
