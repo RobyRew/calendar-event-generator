@@ -186,9 +186,18 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
             style={{ backgroundColor: event.color || '#007aff' }}
           />
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-text truncate">
-              {event.summary || t.newEvent}
-            </h3>
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-base font-semibold text-text truncate">
+                {event.summary || t.newEvent}
+              </h3>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleQuickExport() }}
+                className="shrink-0 p-1.5 rounded-lg text-text-3 hover:text-accent hover:bg-accent/10 transition-colors"
+                title={t.exportAsICS}
+              >
+                <FileDown size={16} />
+              </button>
+            </div>
 
             <div className="flex items-center gap-3 mt-1 text-sm text-text-2">
               <span className="flex items-center gap-1">
