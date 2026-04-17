@@ -8,6 +8,7 @@ import { formatDate, formatTime, formatDuration } from '@/lib/utils'
 import { Clock, MapPin, Repeat, Bell, Users, FileDown, Pencil, Copy, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { generateSingleEventICS } from '@/lib/ics-generator'
+import { getStoredTimezones } from '@/lib/ics-parser'
 
 interface EventCardProps {
   event: CalendarEvent
@@ -31,6 +32,7 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
     const ics = generateSingleEventICS(event, {
       includeAppleExtensions: settings.exportAppleExtensions,
       stripPersonalData: settings.stripPersonalDataOnExport,
+      timezones: getStoredTimezones(),
     })
     downloadFile(ics, `${(event.summary || 'event').replace(/[^a-zA-Z0-9]/g, '_')}.ics`, 'text/calendar')
     setMenuPos(null)
