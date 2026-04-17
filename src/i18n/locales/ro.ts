@@ -143,6 +143,7 @@ export const ro: Translations = {
   resources: 'Resurse',
   contact: 'Contact',
   appleExtensions: 'Apple Calendar',
+  appleMapHandle: 'MapKit Handle',
   googleExtensions: 'Google Calendar',
   microsoftExtensions: 'Microsoft Outlook',
   travelAdvisory: 'Aviz de călătorie',
@@ -309,4 +310,7 @@ export const ro: Translations = {
   deleteThisEvent: 'Șterge evenimentul',
   unsavedChanges: 'Ai modificări nesalvate. Le descartezi?',
   discardChanges: 'Descartează',
+  importDuplicateFound: '{count} eveniment(e) există deja. Suprascrie sau creează copii noi?',
+  importOverwrite: 'Suprascrie',
+  importCreateNew: 'Creează nou',
 }

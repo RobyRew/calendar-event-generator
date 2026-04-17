@@ -67,6 +67,7 @@ export interface Translations {
   latitude: string
   longitude: string
   endLocation: string
+  appleMapHandle: string
 
   // Status
   status: string
@@ -350,4 +351,7 @@ export interface Translations {
   deleteThisEvent: string
   unsavedChanges: string
   discardChanges: string
+  importDuplicateFound: string
+  importOverwrite: string
+  importCreateNew: string
 }

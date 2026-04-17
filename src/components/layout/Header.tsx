@@ -6,6 +6,8 @@ import { getTranslations } from '@/i18n'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { cn } from '@/lib/utils'
 
+const logoUrl = new URL('/favicon.svg', import.meta.url).href
+
 export function Header() {
   const {
     toggleSidebar,
@@ -51,6 +53,7 @@ export function Header() {
         </div>
       ) : (
         <>
+          <img src={logoUrl} alt="" className="w-6 h-6 shrink-0" />
           <h1 className="text-base font-semibold text-text flex-1">{t.appName}</h1>
 
           <div className="flex items-center gap-1">

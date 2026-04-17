@@ -1,27 +1,24 @@
 import { useState, useRef } from 'react'
-import { Download, Link2, FileDown, FileUp, AlertCircle, CheckCircle, Calendar, FileStack } from 'lucide-react'
+import { Download, Link2, FileDown, FileUp, AlertCircle, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Tabs } from '@/components/ui/Tabs'
-import { Modal } from '@/components/ui/Modal'
 import { useEventStore } from '@/stores/event-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations, t as translate } from '@/i18n'
 import { generateICS } from '@/lib/ics-generator'
-import { parseICS } from '@/lib/ics-parser'
 import { generateGoogleCalendarUrl, generateOutlookUrl, generateOffice365Url } from '@/lib/export-urls'
-import { downloadFile, readFileAsText, generateUID } from '@/lib/utils'
+import { downloadFile } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import { putTemplate } from '@/lib/storage'
-import type { CalendarEvent, EventTemplate } from '@/types'
+import { useImport, ImportModals } from '@/hooks/use-import'
 
 export function ImportExportPanel() {
-  const { events, importEvents } = useEventStore()
+  const { events } = useEventStore()
   const { settings } = useSettingsStore()
   const t = getTranslations(settings.language)
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [selectedUids, setSelectedUids] = useState<Set<string>>(new Set())
-  const [importChoiceEvents, setImportChoiceEvents] = useState<CalendarEvent[] | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const importHook = useImport()
 
   const allSelected = events.length > 0 && selectedUids.size === events.length
   const noneSelected = selectedUids.size === 0
@@ -73,76 +70,20 @@ export function ImportExportPanel() {
     }
   }
 
-  const parseFile = async (file: File): Promise<CalendarEvent[]> => {
-    const text = await readFileAsText(file)
-    if (file.name.endsWith('.ics')) {
-      const result = parseICS(text)
-      return result.events
-    } else if (file.name.endsWith('.json')) {
-      const data = JSON.parse(text)
-      return Array.isArray(data) ? data : data.events ?? []
-    }
-    return []
-  }
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     try {
-      const parsed = await parseFile(file)
+      const parsed = await importHook.parseFile(file)
       if (parsed.length === 0) {
         setStatus({ type: 'error', message: t.noEventsInFile })
       } else {
-        setImportChoiceEvents(parsed)
+        importHook.openImportChoice(parsed)
       }
     } catch {
       setStatus({ type: 'error', message: t.importError })
     }
     e.target.value = ''
-  }
-
-  const handleImportAsEvents = async () => {
-    if (!importChoiceEvents) return
-    await importEvents(importChoiceEvents)
-    setStatus({ type: 'success', message: translate(t, 'importSuccess', { count: importChoiceEvents.length }) })
-    setImportChoiceEvents(null)
-  }
-
-  const handleImportAsTemplates = async () => {
-    if (!importChoiceEvents) return
-    for (const evt of importChoiceEvents) {
-      const template: EventTemplate = {
-        id: generateUID(),
-        name: evt.summary || 'Imported Template',
-        description: evt.description || '',
-        icon: '📅',
-        color: evt.color || settings.defaultCalendarColor,
-        categories: evt.categories || [],
-        isBuiltIn: false,
-        event: {
-          summary: evt.summary,
-          description: evt.description,
-          allDay: evt.allDay,
-          timezone: evt.timezone,
-          location: evt.location,
-          color: evt.color,
-          categories: evt.categories,
-          priority: evt.priority,
-          url: evt.url,
-          classification: evt.classification,
-          transparency: evt.transparency,
-          alarms: evt.alarms,
-          recurrenceRule: evt.recurrenceRule,
-          attendees: evt.attendees,
-          organizer: evt.organizer,
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-      await putTemplate(template)
-    }
-    setStatus({ type: 'success', message: translate(t, 'importSuccess', { count: importChoiceEvents.length }) })
-    setImportChoiceEvents(null)
   }
 
   const selectedForLinks = selectedUids.size === 1
@@ -304,39 +245,10 @@ export function ImportExportPanel() {
         )}
       </Tabs>
 
-      {/* Import choice modal */}
-      <Modal
-        open={importChoiceEvents !== null}
-        onClose={() => setImportChoiceEvents(null)}
-        title={t.importChoice}
-      >
-        <div className="p-4 space-y-3">
-          <p className="text-sm text-text-3">
-            {translate(t, 'selectedCount', { count: importChoiceEvents?.length ?? 0 })}
-          </p>
-          <Button
-            variant="primary"
-            onClick={handleImportAsEvents}
-            className="w-full justify-center"
-          >
-            <Calendar size={18} /> {t.importAsEvents}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={handleImportAsTemplates}
-            className="w-full justify-center"
-          >
-            <FileStack size={18} /> {t.importAsTemplates}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => setImportChoiceEvents(null)}
-            className="w-full justify-center"
-          >
-            {t.cancel}
-          </Button>
-        </div>
-      </Modal>
+      <ImportModals
+        hook={importHook}
+        onSuccess={(msg) => setStatus({ type: 'success', message: msg })}
+      />
     </div>
   )
 }

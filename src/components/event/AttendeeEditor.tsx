@@ -46,13 +46,13 @@ export function AttendeeEditor({ organizer, attendees, onOrganizerChange, onAtte
           <Input
             placeholder={t.organizerName}
             value={organizer?.name ?? ''}
-            onChange={(e) => onOrganizerChange({ name: e.target.value, email: organizer?.email ?? '', ...organizer })}
+            onChange={(e) => onOrganizerChange({ ...organizer, name: e.target.value, email: organizer?.email ?? '' })}
           />
           <Input
             placeholder={t.organizerEmail}
             type="email"
             value={organizer?.email ?? ''}
-            onChange={(e) => onOrganizerChange({ email: e.target.value, name: organizer?.name ?? '', ...organizer })}
+            onChange={(e) => onOrganizerChange({ ...organizer, email: e.target.value, name: organizer?.name ?? '' })}
           />
         </div>
       </div>

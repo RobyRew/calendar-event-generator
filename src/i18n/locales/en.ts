@@ -143,6 +143,7 @@ export const en: Translations = {
   resources: 'Resources',
   contact: 'Contact',
   appleExtensions: 'Apple Calendar',
+  appleMapHandle: 'MapKit Handle',
   googleExtensions: 'Google Calendar',
   microsoftExtensions: 'Microsoft Outlook',
   travelAdvisory: 'Travel Advisory',
@@ -309,4 +310,7 @@ export const en: Translations = {
   deleteThisEvent: 'Delete Event',
   unsavedChanges: 'You have unsaved changes. Discard them?',
   discardChanges: 'Discard',
+  importDuplicateFound: '{count} event(s) already exist. Overwrite or create new copies?',
+  importOverwrite: 'Overwrite',
+  importCreateNew: 'Create New',
 }

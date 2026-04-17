@@ -77,6 +77,13 @@ export function LocationEditor({ location, onChange }: LocationEditorProps) {
         value={location?.appleAddress ?? ''}
         onChange={(e) => update({ appleAddress: e.target.value })}
       />
+
+      <Input
+        label={`${t.appleExtensions} – ${t.appleMapHandle}`}
+        placeholder="X-APPLE-MAPKIT-HANDLE..."
+        value={location?.appleMapItemHandle ?? ''}
+        onChange={(e) => update({ appleMapItemHandle: e.target.value })}
+      />
     </div>
   )
 }

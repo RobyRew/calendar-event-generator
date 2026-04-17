@@ -13,7 +13,13 @@ interface Property {
 }
 
 function parseLine(line: string): Property {
-  const colonIdx = line.indexOf(':')
+  // Find the first colon that isn't inside a quoted parameter value
+  let inQuote = false
+  let colonIdx = -1
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQuote = !inQuote; continue }
+    if (!inQuote && line[i] === ':') { colonIdx = i; break }
+  }
   if (colonIdx === -1) return { name: '', params: {}, value: line }
 
   const before = line.substring(0, colonIdx)
@@ -26,16 +32,25 @@ function parseLine(line: string): Property {
   const paramStr = before.substring(semiIdx + 1)
   const params: Record<string, string> = {}
 
-  const paramParts = paramStr.match(/([^;=]+)=("(?:[^"]*(?:"[^"]*)*[^"]*)"?|[^;]*)/g)
-  if (paramParts) {
-    for (const part of paramParts) {
-      const eq = part.indexOf('=')
-      if (eq === -1) continue
-      const key = part.substring(0, eq).toUpperCase()
-      let val = part.substring(eq + 1)
-      if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1)
-      params[key] = val
+  // Parse params respecting quoted values
+  let j = 0
+  while (j < paramStr.length) {
+    const eqIdx = paramStr.indexOf('=', j)
+    if (eqIdx === -1) break
+    const key = paramStr.substring(j, eqIdx).toUpperCase()
+    j = eqIdx + 1
+    let val: string
+    if (paramStr[j] === '"') {
+      const closeQuote = paramStr.indexOf('"', j + 1)
+      if (closeQuote === -1) { val = paramStr.substring(j + 1); j = paramStr.length }
+      else { val = paramStr.substring(j + 1, closeQuote); j = closeQuote + 1 }
+      if (paramStr[j] === ';') j++ // skip delimiter
+    } else {
+      const nextSemi = paramStr.indexOf(';', j)
+      if (nextSemi === -1) { val = paramStr.substring(j); j = paramStr.length }
+      else { val = paramStr.substring(j, nextSemi); j = nextSemi + 1 }
     }
+    params[key] = val
   }
 
   return { name, params, value }
@@ -101,7 +116,7 @@ function parseRRule(value: string): RecurrenceRule {
 
 function parseAttendee(prop: Property): EventAttendee {
   return {
-    name: prop.params['CN']?.replace(/"/g, '') ?? '',
+    name: unescapeText(prop.params['CN']?.replace(/"/g, '') ?? ''),
     email: prop.value.replace('mailto:', '').replace('MAILTO:', ''),
     role: (prop.params['ROLE'] as EventAttendee['role']) ?? 'REQ-PARTICIPANT',
     status: (prop.params['PARTSTAT'] as EventAttendee['status']) ?? 'NEEDS-ACTION',
@@ -257,7 +272,7 @@ export function parseICS(content: string): ParsedCalendar {
           }
           case 'ORGANIZER':
             event.organizer = {
-              name: eLine.params['CN']?.replace(/"/g, '') ?? '',
+              name: unescapeText(eLine.params['CN']?.replace(/"/g, '') ?? ''),
               email: eLine.value.replace(/mailto:/i, ''),
             }
             break

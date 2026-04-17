@@ -26,8 +26,8 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'w-56 bg-surface-2 border-r border-border flex flex-col shrink-0 transition-all duration-200',
-        !isSidebarOpen && 'w-0 border-0 overflow-hidden',
+        'bg-surface-2 border-r border-border flex flex-col shrink-0 transition-all duration-200 overflow-hidden',
+        isSidebarOpen ? 'w-56' : 'w-0 border-0',
       )}
     >
       <nav className="flex-1 py-2 px-2 space-y-0.5">

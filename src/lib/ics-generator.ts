@@ -154,8 +154,8 @@ export function generateICS(events: CalendarEvent[], options: GeneratorOptions =
         if (event.location.appleMapItemHandle) parts.push(`X-APPLE-MAPKIT-HANDLE=${event.location.appleMapItemHandle}`)
         if (event.location.appleRadius) parts.push(`X-APPLE-RADIUS=${event.location.appleRadius}`)
         parts.push(`X-APPLE-REFERENCEFRAME=1`)
-        if (event.location.appleAddress) parts.push(`X-ADDRESS="${escapeText(event.location.appleAddress)}"`)
-        if (event.location.appleTitle) parts.push(`X-TITLE="${escapeText(event.location.appleTitle)}"`)
+        if (event.location.appleAddress) parts.push(`X-ADDRESS="${event.location.appleAddress}"`)
+        if (event.location.appleTitle) parts.push(`X-TITLE="${event.location.appleTitle}"`)
         const geo = event.location.geo ? `geo:${event.location.geo.latitude},${event.location.geo.longitude}` : ''
         emit(`X-APPLE-STRUCTURED-LOCATION;${parts.join(';')}:${geo}`)
       }
