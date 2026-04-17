@@ -74,8 +74,20 @@ export function LocationEditor({ location, onChange }: LocationEditorProps) {
       <Input
         label={`${t.appleExtensions} – ${t.location}`}
         placeholder="Apple Maps address..."
-        value={location?.appleAddress ?? ''}
-        onChange={(e) => update({ appleAddress: e.target.value })}
+        value={location?.appleAddress ?? location?.appleTitle ?? ''}
+        onChange={(e) => update({ appleAddress: e.target.value, appleTitle: e.target.value })}
+      />
+
+      <Input
+        label={`${t.appleExtensions} – ${t.appleRadius}`}
+        type="number"
+        step="any"
+        placeholder="70"
+        value={location?.appleRadius ?? ''}
+        onChange={(e) => {
+          const val = parseFloat(e.target.value)
+          update({ appleRadius: isNaN(val) ? undefined : val })
+        }}
       />
 
       <Input

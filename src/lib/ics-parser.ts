@@ -332,6 +332,14 @@ export function parseICS(content: string): ParsedCalendar {
                 appleTitle: eLine.params['X-TITLE'],
               }
             }
+            // Sync address and title — if only one is set, use it for both
+            if (event.location) {
+              if (!event.location.appleAddress && event.location.appleTitle) {
+                event.location.appleAddress = event.location.appleTitle
+              } else if (!event.location.appleTitle && event.location.appleAddress) {
+                event.location.appleTitle = event.location.appleAddress
+              }
+            }
             break
           case 'X-GOOGLE-CONFERENCE':
             event.google = { ...event.google, conferenceUrl: eLine.value }

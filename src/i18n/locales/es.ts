@@ -144,6 +144,8 @@ export const es: Translations = {
   contact: 'Contacto',
   appleExtensions: 'Apple Calendar',
   appleMapHandle: 'MapKit Handle',
+  appleTitle: 'Título',
+  appleRadius: 'Radio (m)',
   googleExtensions: 'Google Calendar',
   microsoftExtensions: 'Microsoft Outlook',
   travelAdvisory: 'Aviso de viaje',

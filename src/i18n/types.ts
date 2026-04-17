@@ -68,6 +68,8 @@ export interface Translations {
   longitude: string
   endLocation: string
   appleMapHandle: string
+  appleTitle: string
+  appleRadius: string
 
   // Status
   status: string

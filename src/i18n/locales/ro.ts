@@ -144,6 +144,8 @@ export const ro: Translations = {
   contact: 'Contact',
   appleExtensions: 'Apple Calendar',
   appleMapHandle: 'MapKit Handle',
+  appleTitle: 'Titlu',
+  appleRadius: 'Rază (m)',
   googleExtensions: 'Google Calendar',
   microsoftExtensions: 'Microsoft Outlook',
   travelAdvisory: 'Aviz de călătorie',
