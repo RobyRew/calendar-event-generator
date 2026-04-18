@@ -1,21 +1,8 @@
-import type { CalendarEvent, EventAlarm, EventAttendee, RecurrenceRule, ParsedCalendar, TimezoneDefinition, TimezoneRule, CalendarMeta, WeekDay, EventAttachment } from '@/types'
+import type { CalendarEvent, EventAlarm, EventAttendee, RecurrenceRule, ParsedCalendar, TimezoneDefinition, CalendarMeta, WeekDay, EventAttachment } from '@/types'
 import { createDefaultEvent, generateUID } from './utils'
 
-// Module-level timezone registry — accumulates timezone definitions from imports
-const timezoneRegistry = new Map<string, TimezoneDefinition>()
-
-export function registerTimezones(tzs: TimezoneDefinition[]) {
-  for (const tz of tzs) {
-    if (tz.tzid && (tz.standard || tz.daylight)) timezoneRegistry.set(tz.tzid, tz)
-  }
-}
-
-export function getStoredTimezones(): TimezoneDefinition[] {
-  return Array.from(timezoneRegistry.values())
-}
-
 function unfoldLines(raw: string): string[] {
-  const unfolded = raw.replace(/\r?\n[ \t]/g, '').replace(/\r/g, '')
+  const unfolded = raw.replace(/\r\n[ \t]/g, '').replace(/\r/g, '')
   return unfolded.split('\n').filter((l) => l.length > 0)
 }
 
@@ -203,26 +190,6 @@ export function parseICS(content: string): ParsedCalendar {
         const tzLine = parseLine(lines[i]!)
         if (tzLine.name === 'END' && tzLine.value === 'VTIMEZONE') break
         if (tzLine.name === 'TZID') tz.tzid = tzLine.value
-
-        if (tzLine.name === 'BEGIN' && (tzLine.value === 'STANDARD' || tzLine.value === 'DAYLIGHT')) {
-          const ruleType = tzLine.value.toLowerCase() as 'standard' | 'daylight'
-          const rule: TimezoneRule = { dtstart: '', tzname: '', tzoffsetfrom: '', tzoffsetto: '' }
-          i++
-          while (i < lines.length) {
-            const rLine = parseLine(lines[i]!)
-            if (rLine.name === 'END' && (rLine.value === 'STANDARD' || rLine.value === 'DAYLIGHT')) break
-            switch (rLine.name) {
-              case 'DTSTART': rule.dtstart = rLine.value; break
-              case 'RRULE': rule.rrule = rLine.value; break
-              case 'TZNAME': rule.tzname = rLine.value; break
-              case 'TZOFFSETFROM': rule.tzoffsetfrom = rLine.value; break
-              case 'TZOFFSETTO': rule.tzoffsetto = rLine.value; break
-            }
-            i++
-          }
-          tz[ruleType] = rule
-        }
-
         i++
       }
       timezones.push(tz)
@@ -344,7 +311,7 @@ export function parseICS(content: string): ParsedCalendar {
             if (eLine.params['X-APPLE-MAPKIT-HANDLE']) {
               event.location = {
                 ...(event.location ?? { text: '' }),
-                appleMapItemHandle: eLine.params['X-APPLE-MAPKIT-HANDLE'].replace(/\s/g, ''),
+                appleMapItemHandle: eLine.params['X-APPLE-MAPKIT-HANDLE'],
               }
             }
             if (eLine.params['X-APPLE-RADIUS']) {

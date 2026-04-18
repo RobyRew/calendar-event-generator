@@ -5,7 +5,7 @@ import { Modal } from '@/components/ui/Modal'
 import { useEventStore } from '@/stores/event-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations, t as translate } from '@/i18n'
-import { parseICS, registerTimezones } from '@/lib/ics-parser'
+import { parseICS } from '@/lib/ics-parser'
 import { readFileAsText, generateUID } from '@/lib/utils'
 import { putTemplate } from '@/lib/storage'
 import type { CalendarEvent, EventTemplate } from '@/types'
@@ -23,9 +23,7 @@ export function useImport() {
   const parseFile = useCallback(async (file: File): Promise<CalendarEvent[]> => {
     const text = await readFileAsText(file)
     if (file.name.endsWith('.ics')) {
-      const parsed = parseICS(text)
-      registerTimezones(parsed.timezones)
-      return parsed.events
+      return parseICS(text).events
     } else if (file.name.endsWith('.json')) {
       const data = JSON.parse(text)
       return Array.isArray(data) ? data : data.events ?? []

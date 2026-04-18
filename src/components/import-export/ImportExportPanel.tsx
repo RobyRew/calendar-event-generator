@@ -6,7 +6,6 @@ import { useEventStore } from '@/stores/event-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations, t as translate } from '@/i18n'
 import { generateICS } from '@/lib/ics-generator'
-import { getStoredTimezones } from '@/lib/ics-parser'
 import { generateGoogleCalendarUrl, generateOutlookUrl, generateOffice365Url } from '@/lib/export-urls'
 import { downloadFile } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -52,7 +51,6 @@ export function ImportExportPanel() {
       const ics = generateICS(target, {
         includeAppleExtensions: settings.exportAppleExtensions,
         stripPersonalData: settings.stripPersonalDataOnExport,
-        timezones: getStoredTimezones(),
       })
       downloadFile(ics, `events-${new Date().toISOString().slice(0, 10)}.ics`, 'text/calendar')
       setStatus({ type: 'success', message: t.exportSuccess })
