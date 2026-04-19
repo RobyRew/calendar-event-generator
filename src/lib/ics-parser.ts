@@ -2,7 +2,7 @@ import type { CalendarEvent, EventAlarm, EventAttendee, RecurrenceRule, ParsedCa
 import { createDefaultEvent, generateUID } from './utils'
 
 function unfoldLines(raw: string): string[] {
-  const unfolded = raw.replace(/\r\n[ \t]/g, '').replace(/\r/g, '')
+  const unfolded = raw.replace(/\r?\n[ \t]/g, '').replace(/\r/g, '')
   return unfolded.split('\n').filter((l) => l.length > 0)
 }
 
@@ -190,6 +190,27 @@ export function parseICS(content: string): ParsedCalendar {
         const tzLine = parseLine(lines[i]!)
         if (tzLine.name === 'END' && tzLine.value === 'VTIMEZONE') break
         if (tzLine.name === 'TZID') tz.tzid = tzLine.value
+        if (tzLine.name === 'BEGIN' && (tzLine.value === 'STANDARD' || tzLine.value === 'DAYLIGHT')) {
+          const ruleType = tzLine.value
+          const rule: { dtstart: string; rrule?: string; tzname: string; tzoffsetfrom: string; tzoffsetto: string } = {
+            dtstart: '', tzname: '', tzoffsetfrom: '+0000', tzoffsetto: '+0000'
+          }
+          i++
+          while (i < lines.length) {
+            const rLine = parseLine(lines[i]!)
+            if (rLine.name === 'END' && rLine.value === ruleType) break
+            switch (rLine.name) {
+              case 'DTSTART': rule.dtstart = rLine.value; break
+              case 'RRULE': rule.rrule = rLine.value; break
+              case 'TZNAME': rule.tzname = rLine.value; break
+              case 'TZOFFSETFROM': rule.tzoffsetfrom = rLine.value; break
+              case 'TZOFFSETTO': rule.tzoffsetto = rLine.value; break
+            }
+            i++
+          }
+          if (ruleType === 'STANDARD') tz.standard = rule
+          else tz.daylight = rule
+        }
         i++
       }
       timezones.push(tz)
@@ -311,7 +332,7 @@ export function parseICS(content: string): ParsedCalendar {
             if (eLine.params['X-APPLE-MAPKIT-HANDLE']) {
               event.location = {
                 ...(event.location ?? { text: '' }),
-                appleMapItemHandle: eLine.params['X-APPLE-MAPKIT-HANDLE'],
+                appleMapItemHandle: eLine.params['X-APPLE-MAPKIT-HANDLE'].replace(/\s/g, ''),
               }
             }
             if (eLine.params['X-APPLE-RADIUS']) {

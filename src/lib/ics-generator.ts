@@ -1,4 +1,4 @@
-import type { CalendarEvent, CalendarMeta, RecurrenceRule } from '@/types'
+import type { CalendarEvent, CalendarMeta, RecurrenceRule, TimezoneDefinition } from '@/types'
 import { PROD_ID, APP_VERSION } from './constants'
 
 function foldLine(line: string): string {
@@ -9,13 +9,90 @@ function foldLine(line: string): string {
   let isFirst = true
   while (start < bytes.length) {
     const chunkSize = isFirst ? 75 : 74
-    const end = Math.min(start + chunkSize, bytes.length)
+    let end = Math.min(start + chunkSize, bytes.length)
+    if (end < bytes.length) {
+      while (end > start && (bytes[end]! & 0xC0) === 0x80) {
+        end--
+      }
+    }
     const chunk = new TextDecoder().decode(bytes.slice(start, end))
     parts.push(isFirst ? chunk : ' ' + chunk)
     start = end
     isFirst = false
   }
   return parts.join('\r\n')
+}
+
+function getTimezoneOffsetString(tz: string, date: Date): string {
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, timeZoneName: 'longOffset',
+    })
+    const parts = fmt.formatToParts(date)
+    const tzPart = parts.find((p) => p.type === 'timeZoneName')
+    if (tzPart) {
+      const m = tzPart.value.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/)
+      if (m) {
+        const sign = m[1]![0]!
+        const hrs = m[1]!.replace(/[+-]/, '').padStart(2, '0')
+        const mins = (m[2] || '00').padStart(2, '0')
+        return `${sign}${hrs}${mins}`
+      }
+      if (tzPart.value === 'GMT') return '+0000'
+    }
+  } catch { /* fall through */ }
+  return '+0000'
+}
+
+function buildTimezoneBlock(tz: string, emit: (line: string) => void, tzDefs?: TimezoneDefinition[]) {
+  const imported = tzDefs?.find((d) => d.tzid === tz)
+  emit('BEGIN:VTIMEZONE')
+  emit(`TZID:${tz}`)
+  if (imported?.standard) {
+    emit('BEGIN:STANDARD')
+    emit(`DTSTART:${imported.standard.dtstart}`)
+    if (imported.standard.rrule) emit(`RRULE:${imported.standard.rrule}`)
+    emit(`TZNAME:${imported.standard.tzname}`)
+    emit(`TZOFFSETFROM:${imported.standard.tzoffsetfrom}`)
+    emit(`TZOFFSETTO:${imported.standard.tzoffsetto}`)
+    emit('END:STANDARD')
+  } else {
+    const jan = new Date(2024, 0, 15)
+    const stdOffset = getTimezoneOffsetString(tz, jan)
+    emit('BEGIN:STANDARD')
+    emit('DTSTART:19701101T030000')
+    emit('RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10')
+    emit(`TZNAME:${tz}`)
+    const jul = new Date(2024, 6, 15)
+    const dstOffset = getTimezoneOffsetString(tz, jul)
+    emit(`TZOFFSETFROM:${dstOffset}`)
+    emit(`TZOFFSETTO:${stdOffset}`)
+    emit('END:STANDARD')
+  }
+  if (imported?.daylight) {
+    emit('BEGIN:DAYLIGHT')
+    emit(`DTSTART:${imported.daylight.dtstart}`)
+    if (imported.daylight.rrule) emit(`RRULE:${imported.daylight.rrule}`)
+    emit(`TZNAME:${imported.daylight.tzname}`)
+    emit(`TZOFFSETFROM:${imported.daylight.tzoffsetfrom}`)
+    emit(`TZOFFSETTO:${imported.daylight.tzoffsetto}`)
+    emit('END:DAYLIGHT')
+  } else {
+    const jan = new Date(2024, 0, 15)
+    const stdOffset = getTimezoneOffsetString(tz, jan)
+    const jul = new Date(2024, 6, 15)
+    const dstOffset = getTimezoneOffsetString(tz, jul)
+    if (stdOffset !== dstOffset) {
+      emit('BEGIN:DAYLIGHT')
+      emit('DTSTART:19700329T020000')
+      emit('RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3')
+      emit(`TZNAME:${tz}`)
+      emit(`TZOFFSETFROM:${stdOffset}`)
+      emit(`TZOFFSETTO:${dstOffset}`)
+      emit('END:DAYLIGHT')
+    }
+  }
+  emit('END:VTIMEZONE')
 }
 
 function escapeText(text: string): string {
@@ -75,10 +152,11 @@ interface GeneratorOptions {
   includeMicrosoftExtensions?: boolean
   stripPersonalData?: boolean
   method?: string
+  timezones?: TimezoneDefinition[]
 }
 
 export function generateICS(events: CalendarEvent[], options: GeneratorOptions = {}): string {
-  const { includeAppleExtensions = true, includeGoogleExtensions = true, includeMicrosoftExtensions = true, method } = options
+  const { includeAppleExtensions = true, includeGoogleExtensions = true, includeMicrosoftExtensions = true, method, timezones: tzDefs } = options
   const lines: string[] = []
 
   const emit = (line: string) => lines.push(foldLine(line))
@@ -91,20 +169,12 @@ export function generateICS(events: CalendarEvent[], options: GeneratorOptions =
   emit(`X-WR-CALNAME:Calendar Event Generator v${APP_VERSION}`)
 
   // Collect unique timezones
-  const timezones = new Set<string>()
+  const tzIds = new Set<string>()
   for (const event of events) {
-    if (event.timezone && event.timezone !== 'UTC') timezones.add(event.timezone)
+    if (event.timezone && event.timezone !== 'UTC') tzIds.add(event.timezone)
   }
-  for (const tz of timezones) {
-    emit('BEGIN:VTIMEZONE')
-    emit(`TZID:${tz}`)
-    emit('BEGIN:STANDARD')
-    emit('DTSTART:19700101T030000')
-    emit(`TZNAME:${tz}`)
-    emit('TZOFFSETFROM:+0000')
-    emit('TZOFFSETTO:+0000')
-    emit('END:STANDARD')
-    emit('END:VTIMEZONE')
+  for (const tz of tzIds) {
+    buildTimezoneBlock(tz, emit, tzDefs)
   }
 
   for (const event of events) {
@@ -149,10 +219,10 @@ export function generateICS(events: CalendarEvent[], options: GeneratorOptions =
       if (event.location.geo) {
         emit(`GEO:${event.location.geo.latitude};${event.location.geo.longitude}`)
       }
-      const hasAppleLocation = event.location.appleAddress || event.location.appleTitle || event.location.appleMapItemHandle || event.location.appleRadius
+      const hasAppleLocation = event.location.appleAddress || event.location.appleTitle || event.location.appleMapItemHandle || event.location.appleRadius || event.location.geo
       if (includeAppleExtensions && hasAppleLocation) {
         const parts = [`VALUE=URI`]
-        if (event.location.appleMapItemHandle) parts.push(`X-APPLE-MAPKIT-HANDLE=${event.location.appleMapItemHandle}`)
+        if (event.location.appleMapItemHandle) parts.push(`X-APPLE-MAPKIT-HANDLE=${event.location.appleMapItemHandle.replace(/\s/g, '')}`)
         if (event.location.appleRadius) parts.push(`X-APPLE-RADIUS=${event.location.appleRadius}`)
         parts.push(`X-APPLE-REFERENCEFRAME=1`)
         if (event.location.appleAddress) parts.push(`X-ADDRESS="${event.location.appleAddress}"`)
@@ -165,7 +235,7 @@ export function generateICS(events: CalendarEvent[], options: GeneratorOptions =
     // Organizer
     if (event.organizer) {
       const parts = []
-      if (event.organizer.name) parts.push(`CN="${escapeText(event.organizer.name)}"`)
+      if (event.organizer.name) parts.push(`CN="${event.organizer.name}"`)
       if (event.organizer.email) parts.push(`EMAIL="${event.organizer.email}"`)
       emit(`ORGANIZER;${parts.join(';')}:mailto:${event.organizer.email}`)
     }
@@ -173,7 +243,7 @@ export function generateICS(events: CalendarEvent[], options: GeneratorOptions =
     // Attendees
     for (const att of event.attendees) {
       const parts = []
-      if (att.name) parts.push(`CN="${escapeText(att.name)}"`)
+      if (att.name) parts.push(`CN="${att.name}"`)
       parts.push(`CUTYPE=${att.type}`)
       if (att.email) parts.push(`EMAIL="${att.email}"`)
       parts.push(`PARTSTAT=${att.status}`)
