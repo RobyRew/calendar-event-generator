@@ -24,6 +24,9 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Runtime Umami injection — picks up UMAMI_SCRIPT_URL + UMAMI_WEBSITE_ID from container env.
+COPY --chmod=755 docker-entrypoint.d/30-inject-umami.sh /docker-entrypoint.d/30-inject-umami.sh
+
 # Expose port 80
 EXPOSE 80
 
