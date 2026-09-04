@@ -1,34 +1,18 @@
-# Build stage
-FROM node:20-alpine AS builder
-
+# syntax=docker/dockerfile:1.10
+FROM node:22-alpine AS build
 WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy source code
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --no-fund
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
-
-# Copy built assets from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Runtime Umami injection — picks up UMAMI_SCRIPT_URL + UMAMI_WEBSITE_ID from container env.
-COPY --chmod=755 docker-entrypoint.d/30-inject-umami.sh /docker-entrypoint.d/30-inject-umami.sh
-
-# Expose port 80
-EXPOSE 80
-
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Shared runtime: pinned, non-root, port 8080, one security-header set.
+# This app previously ran as ROOT on port 80 from an unpinned nginx:alpine, with
+# no CSP, no HSTS, no Referrer-Policy and a deprecated X-XSS-Protection.
+FROM ghcr.io/robyrew/static-web:1
+# SPA: unknown paths serve index.html instead of 404ing, so client-side routes work.
+ENV WEB_FALLBACK=/index.html
+# Widen only the directives the analytics script needs, rather than restating the policy.
+ENV CSP_SCRIPT_EXTRA="https://stats.cosmincalin.es" \
+    CSP_CONNECT_EXTRA="https://stats.cosmincalin.es"
+COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html

@@ -7,3 +7,5 @@ README.md
 .DS_Store
 .env
 .env.*
+# Must reach the build context or Vite sees no VITE_UMAMI_* values.
+!.env.production

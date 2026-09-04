@@ -1,0 +1,19 @@
+# Build definition lives in RobyRew/platform so it is maintained once for the fleet.
+name: Build and publish image
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', '.vscode/**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    # A called workflow can only reduce the caller's permissions, and this repo
+    # defaults to read, so packages: write must be granted here.
+    permissions:
+      contents: read
+      packages: write
+    uses: RobyRew/platform/.github/workflows/build-image.yml@main
+    secrets:
+      DOKPLOY_DEPLOY_WEBHOOK: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK }}
