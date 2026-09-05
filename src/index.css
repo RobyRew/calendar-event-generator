@@ -1,4 +1,9 @@
 @import "tailwindcss";
+/* The shared design system: @robyrew/ui's glass material and Apple control set,
+   plus the Tailwind names for both. The token block below stays because this
+   app has its own themes (including OLED) — it now feeds the shared controls
+   instead of a second, parallel set of primitives. */
+@import "@robyrew/web-config/theme.css";
 
 @theme {
   --color-surface: var(--surface);
@@ -60,8 +65,8 @@
 }
 
 /* ── Light theme (default) ── */
-:root,
-[data-theme="light"] {
+:root:not([data-theme]),
+:root[data-theme="light"] {
   color-scheme: light;
   --surface: #ffffff;
   --surface-2: #f2f2f7;
@@ -84,7 +89,7 @@
 }
 
 /* ── Dark theme ── */
-[data-theme="dark"] {
+:root[data-theme="dark"] {
   color-scheme: dark;
   --surface: #1c1c1e;
   --surface-2: #2c2c2e;
@@ -106,8 +111,34 @@
   --shadow-lg-val: 0 8px 28px rgba(0, 0, 0, 0.4);
 }
 
+/* ── Bridge to @robyrew/ui ──────────────────────────────────────────────
+   Alias rather than duplicate, so the theme blocks above are the single set of
+   values and every control follows them — including the OLED theme, which the
+   package knows nothing about.
+
+   --accent is absent on purpose: both systems use that exact name, so an alias
+   would be a self-reference. The specificity change on the theme selectors is
+   what makes this app's --accent the one that wins. */
+:root:not([data-theme]),
+:root[data-theme] {
+  --panel:       var(--surface);
+  --ground:      var(--surface);
+  --ground-2:    var(--surface-2);
+  --hair:        var(--border-clr);
+  --hair-soft:   color-mix(in oklab, var(--border-clr) 55%, var(--surface));
+  --ink:         var(--text);
+  --ink-2:       var(--text-2);
+  --ink-3:       var(--text-3);
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --rw-danger:   var(--danger);
+  --shadow-rgb:  0 0 0;
+
+  --rw-r-card: var(--radius-xl);
+  --rw-r-ctl:  var(--radius-md);
+}
+
 /* ── OLED theme ── */
-[data-theme="oled"] {
+:root[data-theme="oled"] {
   color-scheme: dark;
   --surface: #000000;
   --surface-2: #1c1c1e;

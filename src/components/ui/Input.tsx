@@ -12,24 +12,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="flex flex-col gap-1">
         {label && (
-          <label htmlFor={inputId} className="text-sm font-medium text-text-2">
+          <label htmlFor={inputId} className="rw-label">
             {label}
           </label>
         )}
         <input
           ref={ref}
           id={inputId}
-          className={cn(
-            'h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text',
-            'placeholder:text-text-3 transition-colors duration-150',
-            'focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20',
-            'disabled:opacity-50 disabled:cursor-not-allowed',
-            error && 'border-danger focus:border-danger focus:ring-danger/20',
-            className,
-          )}
+          aria-invalid={error ? true : undefined}
+          className={cn('rw-field h-10', className)}
           {...props}
         />
-        {error && <p className="text-xs text-danger">{error}</p>}
+        {error && <p className="rw-hint !text-danger">{error}</p>}
       </div>
     )
   },

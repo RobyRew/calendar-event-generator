@@ -26,19 +26,16 @@ export function Tabs({ tabs, activeTab: controlledTab, onChange, children, class
 
   return (
     <div className={cn('flex flex-col', className)}>
-      <div className="flex gap-1 p-1 bg-surface-2 rounded-lg overflow-x-auto" role="tablist">
+      {/* .rw-seg with no thumb element: the selected segment paints its own
+          capsule, which is what suits a scrolling, variable-width strip. */}
+      <div className="rw-seg !grid-flow-col !auto-cols-auto overflow-x-auto" role="tablist">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             role="tab"
             aria-selected={activeTab === tab.id}
             onClick={() => handleChange(tab.id)}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-150 whitespace-nowrap',
-              activeTab === tab.id
-                ? 'bg-surface text-text shadow-xs'
-                : 'text-text-3 hover:text-text-2',
-            )}
+            className="rw-seg__item gap-1.5 px-3 whitespace-nowrap"
           >
             {tab.icon}
             {tab.label}

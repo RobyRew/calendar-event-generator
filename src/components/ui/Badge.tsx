@@ -12,10 +12,10 @@ export function Badge({ children, color, variant = 'filled', className }: BadgeP
   return (
     <span
       className={cn(
-        'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-        variant === 'filled'
-          ? 'text-white'
-          : 'border',
+        // .rw-badge is the label shape; a per-event colour still arrives as an
+        // inline style, since that palette is user-chosen and not a token.
+        'rw-badge !rounded-full',
+        variant === 'filled' ? '!text-white' : 'border !bg-transparent',
         className,
       )}
       style={
