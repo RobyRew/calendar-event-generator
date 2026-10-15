@@ -1,0 +1,53 @@
+---
+import '@/index.css'
+
+interface Props {
+  title?: string
+  description?: string
+  /** Pages carrying a secret in the URL (share links) must not leak it via Referer or search. */
+  private?: boolean
+}
+
+const {
+  title = 'Calendar Event Generator',
+  description = 'Create, edit and export calendar events with full ICS support',
+  private: isPrivate = false,
+} = Astro.props
+const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`
+const umamiSrc = import.meta.env.PUBLIC_UMAMI_SCRIPT_URL
+const umamiId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID
+const umamiDomains = import.meta.env.PUBLIC_UMAMI_DOMAINS
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content={description} />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CalGen" />
+    <meta name="theme-color" content="#007aff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)" />
+    {isPrivate && <meta name="robots" content="noindex, nofollow" />}
+    {isPrivate && <meta name="referrer" content="no-referrer" />}
+    <link rel="apple-touch-icon" href={`${base}icons/icon-192.png`} />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <link rel="icon" type="image/png" sizes="32x32" href={`${base}icons/icon-32.png`} />
+    <link rel="manifest" href={`${base}manifest.webmanifest`} />
+    <title>{title}</title>
+    {
+      // Analytics only when configured at build time; data-domains keeps forks and
+      // previews from reporting into the dashboard. External file, so the CSP needs
+      // only the stats origin, not 'unsafe-inline'.
+      umamiSrc && umamiId && (
+        <script is:inline defer src={umamiSrc} data-website-id={umamiId} data-domains={umamiDomains} data-do-not-track="true"></script>
+      )
+    }
+    <slot name="head" />
+  </head>
+  <body>
+    <slot />
+    {import.meta.env.PROD && <script>import '@/pwa/register'</script>}
+  </body>
+</html>

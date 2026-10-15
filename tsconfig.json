@@ -1,7 +1,11 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "extends": "@robyrew/web-config/tsconfig/base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src/**/*", "astro.config.mjs", "integrations/**/*", "vitest.config.ts", ".astro/types.d.ts"],
+  "exclude": ["dist/", "node_modules/"]
 }

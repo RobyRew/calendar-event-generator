@@ -1,0 +1,10 @@
+---
+import Base from '@/layouts/Base.astro'
+import App from '@/App'
+
+// The app shell is the same HTML for every visitor: build it once, serve it as a file.
+export const prerender = true
+---
+<Base>
+  <div id="root"><App client:only="react" /></div>
+</Base>
