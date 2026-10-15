@@ -21,6 +21,8 @@ import { createDefaultEvent, generateUID, cn, eventKey, minutesToTrigger } from 
 import { addDaysIn, combineWall, fromWall, startOfDayIn, toWall, wallDateString, wallTimeString } from '@/lib/time'
 import { COMMON_TIMEZONES } from '@/lib/constants'
 import { useIsMobile } from '@/hooks/use-media-query'
+import { useAccountStore, writableCalendars } from '@/stores/account-store'
+import { CLOUD } from '@/lib/cloud/api'
 
 interface EventEditorProps {
   inline?: boolean
@@ -181,6 +183,13 @@ export function EventEditor({ inline }: EventEditorProps) {
     ? COMMON_TIMEZONES.map((z) => ({ value: z, label: z.replace(/_/g, ' ') }))
     : [{ value: event.timezone, label: event.timezone.replace(/_/g, ' ') }, ...COMMON_TIMEZONES.map((z) => ({ value: z, label: z.replace(/_/g, ' ') }))]
 
+  // Where the event lives: this device or an account calendar the user can edit.
+  // Chosen when creating; an existing event stays in its calendar.
+  const accountCalendars = useAccountStore((s) => s.calendars)
+  const accountStatus = useAccountStore((s) => s.status)
+  const targets = CLOUD && accountStatus === 'signedIn' ? writableCalendars(accountCalendars) : []
+  const currentCalendarName = event.calendarId ? accountCalendars.find((c) => c.id === event.calendarId)?.name : null
+
   const tabs = [
     { id: 'basic', label: isMobile ? '📝' : t.eventTitle },
     { id: 'datetime', label: isMobile ? '🕐' : t.startDate },
@@ -241,6 +250,17 @@ export function EventEditor({ inline }: EventEditorProps) {
             <div className="animate-fade-in">
               {activeTab === 'basic' && (
                 <div className="space-y-4">
+                  {!editingEventId && targets.length > 0 && (
+                    <Select
+                      label={t.saveTo}
+                      options={[{ value: '', label: t.onThisDevice }, ...targets.map((c) => ({ value: c.id, label: c.name }))]}
+                      value={event.calendarId ?? ''}
+                      onChange={(e) => update('calendarId', e.target.value || undefined)}
+                    />
+                  )}
+                  {editingEventId && currentCalendarName && (
+                    <p className="text-xs text-text-3">{currentCalendarName}</p>
+                  )}
                   <Input
                     ref={titleRef}
                     label={t.eventTitle}

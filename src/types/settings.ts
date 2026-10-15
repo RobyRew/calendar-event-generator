@@ -3,7 +3,7 @@ export type Language = 'en' | 'es' | 'ro'
 export type TimeFormat = '12h' | '24h'
 export type DateFormat = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD'
 export type DefaultView = 'events' | 'month' | 'week' | 'day' | 'agenda'
-export type ActiveView = 'events' | 'calendar' | 'templates' | 'import-export' | 'settings'
+export type ActiveView = 'events' | 'calendar' | 'templates' | 'import-export' | 'settings' | 'account'
 export type CalendarViewMode = 'month' | 'week' | 'day' | 'agenda'
 
 export interface AppSettings {

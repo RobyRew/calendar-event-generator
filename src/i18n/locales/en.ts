@@ -394,4 +394,5 @@ export const en: Translations = {
   openApp: 'Open the app',
   accountsUnavailable: 'Accounts are not available on this server.',
   busyLabel: 'Busy',
+  syncError: 'Could not save to your account. Showing the latest saved version.',
 }

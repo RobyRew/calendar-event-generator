@@ -1,14 +1,14 @@
 import { useMemo } from 'react'
 import { parseISO, compareAsc, format, isToday, isTomorrow, isYesterday } from 'date-fns'
-import { useEventStore } from '@/stores/event-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
 import { EventCard } from '@/components/event/EventCard'
 import { eventKey, eventDisplayStart } from '@/lib/utils'
+import { useVisibleEvents } from '@/hooks/use-visible-events'
 
 export function AgendaView() {
-  const { events } = useEventStore()
+  const events = useVisibleEvents()
   const { openEditor } = useUIStore()
   const { settings } = useSettingsStore()
   const t = getTranslations(settings.language)

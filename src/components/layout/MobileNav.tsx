@@ -4,17 +4,21 @@ import {
   FileStack,
   ArrowDownUp,
   Settings,
+  CircleUser,
 } from 'lucide-react'
 import { useUIStore, type ActiveView } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
 import { cn } from '@/lib/utils'
+import { CLOUD } from '@/lib/cloud/api'
 
 const TABS: { view: ActiveView; icon: typeof Calendar; labelKey: string }[] = [
   { view: 'events', icon: LayoutList, labelKey: 'events' },
   { view: 'calendar', icon: Calendar, labelKey: 'calendar' },
   { view: 'templates', icon: FileStack, labelKey: 'templates' },
   { view: 'import-export', icon: ArrowDownUp, labelKey: 'importExport' },
+  // Accounts and sharing exist only in the server build.
+  ...(CLOUD ? [{ view: 'account' as ActiveView, icon: CircleUser, labelKey: 'account' }] : []),
   { view: 'settings', icon: Settings, labelKey: 'settings' },
 ]
 

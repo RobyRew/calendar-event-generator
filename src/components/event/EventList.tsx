@@ -9,9 +9,11 @@ import { generateUID, eventKey, eventDisplayStart } from '@/lib/utils'
 import { EventCard } from './EventCard'
 import { EventEditor } from './EventEditor'
 import { Button } from '@/components/ui/Button'
+import { useVisibleEvents } from '@/hooks/use-visible-events'
 
 export function EventList() {
-  const { events, addEvent, deleteEvent } = useEventStore()
+  const events = useVisibleEvents()
+  const { addEvent, deleteEvent } = useEventStore()
   const { openEditor, searchQuery, isEditorOpen, editingEventId } = useUIStore()
   const { settings } = useSettingsStore()
   const t = getTranslations(settings.language)

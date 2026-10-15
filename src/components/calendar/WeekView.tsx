@@ -3,14 +3,14 @@ import {
   startOfWeek, endOfWeek, eachDayOfInterval,
   format, addWeeks, subWeeks, isSameDay, isToday, } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEventStore } from '@/stores/event-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { cn, formatTime, eventKey, eventDisplayStart } from '@/lib/utils'
+import { useVisibleEvents } from '@/hooks/use-visible-events'
 
 export function WeekView() {
   const [currentWeek, setCurrentWeek] = useState(new Date())
-  const { events } = useEventStore()
+  const events = useVisibleEvents()
   const { openEditor } = useUIStore()
   const { settings } = useSettingsStore()
 

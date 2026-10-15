@@ -394,4 +394,5 @@ export const es: Translations = {
   openApp: 'Abrir la app',
   accountsUnavailable: 'Las cuentas no están disponibles en este servidor.',
   busyLabel: 'Ocupado',
+  syncError: 'No se pudo guardar en tu cuenta. Se muestra la última versión guardada.',
 }

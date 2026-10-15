@@ -435,4 +435,5 @@ export interface Translations {
   openApp: string
   accountsUnavailable: string
   busyLabel: string
+  syncError: string
 }

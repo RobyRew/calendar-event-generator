@@ -5,9 +5,12 @@ import type { CalendarEvent } from '@/types'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
 import { formatDate, formatTime, formatDuration } from '@/lib/utils'
-import { Clock, MapPin, Repeat, Bell, Users, FileDown, Pencil, Copy, Trash2 } from 'lucide-react'
+import { Clock, MapPin, Repeat, Bell, Users, FileDown, Pencil, Copy, Trash2, Share2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { generateSingleEventICS } from '@/lib/ics-generator'
+import { CLOUD } from '@/lib/cloud/api'
+import { useUIStore } from '@/stores/ui-store'
+import { ShareDialog } from '@/components/share/ShareDialog'
 
 interface EventCardProps {
   event: CalendarEvent
@@ -20,6 +23,8 @@ interface EventCardProps {
 
 export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDelete }: EventCardProps) {
   const { settings } = useSettingsStore()
+  const showToast = useUIStore((s) => s.showToast)
+  const [shareOpen, setShareOpen] = useState(false)
   const t = getTranslations(settings.language)
   const duration = differenceInMinutes(parseISO(event.endDate), parseISO(event.startDate))
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
@@ -109,8 +114,24 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
     { icon: Pencil, label: t.editThisEvent, action: () => { setMenuPos(null); onEdit?.() } },
     { icon: Copy, label: t.duplicateEvent, action: () => { setMenuPos(null); onDuplicate?.() } },
     { icon: FileDown, label: t.exportAsICS, action: handleQuickExport },
+    // Live links need the event on the server; events on this device are offered a hint instead.
+    ...(CLOUD
+      ? [{
+          icon: Share2,
+          label: t.shareLiveLink,
+          action: () => {
+            setMenuPos(null)
+            if (event.calendarId) setShareOpen(true)
+            else showToast(t.shareNeedsAccount, 'info')
+          },
+        }]
+      : []),
     { icon: Trash2, label: t.deleteThisEvent, action: () => { setMenuPos(null); onDelete?.() }, danger: true },
   ]
+
+  const shareDialog = shareOpen && event.calendarId && (
+    <ShareDialog open onClose={() => setShareOpen(false)} calendarId={event.calendarId} eventUid={event.uid} title={event.summary || t.shareEvent} />
+  )
 
   const contextMenu = menuPos && (
     <div
@@ -161,6 +182,7 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
           </div>
         </div>
         {contextMenu}
+        {shareDialog}
       </>
     )
   }
@@ -246,6 +268,7 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
         </div>
       </div>
       {contextMenu}
+        {shareDialog}
     </>
   )
 }

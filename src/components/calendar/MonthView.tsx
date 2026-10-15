@@ -4,14 +4,14 @@ import {
   eachDayOfInterval, isSameMonth, isSameDay, isToday,
   format, addMonths, subMonths, } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEventStore } from '@/stores/event-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { cn, eventKey, eventDisplayStart } from '@/lib/utils'
+import { useVisibleEvents } from '@/hooks/use-visible-events'
 
 export function MonthView() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
-  const { events } = useEventStore()
+  const events = useVisibleEvents()
   const { openEditor } = useUIStore()
   const { settings } = useSettingsStore()
 

@@ -394,4 +394,5 @@ export const ro: Translations = {
   openApp: 'Deschide aplicația',
   accountsUnavailable: 'Conturile nu sunt disponibile pe acest server.',
   busyLabel: 'Ocupat',
+  syncError: 'Nu s-a putut salva în cont. Se afișează ultima versiune salvată.',
 }
