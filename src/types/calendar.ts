@@ -112,6 +112,11 @@ export interface MicrosoftExtensions {
 }
 
 export interface CalendarEvent {
+  /**
+   * Cloud calendar this event belongs to; absent for events stored on this device.
+   * Not part of the ICS output.
+   */
+  calendarId?: string
   uid: string
   sequence: number
   summary: string

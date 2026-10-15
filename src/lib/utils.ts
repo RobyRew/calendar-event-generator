@@ -99,9 +99,12 @@ export function minutesToTrigger(minutes: number): string {
 /**
  * Identity of an event row. A recurring master and its overridden occurrences share
  * a UID (RFC 5545), so the UID alone used to make an override overwrite its master.
+ * Cloud events are prefixed with their calendar, since the same UID can exist on
+ * this device and in an account calendar (after "move to account").
  */
-export function eventKey(event: Pick<CalendarEvent, 'uid' | 'recurrenceId'>): string {
-  return event.recurrenceId ? `${event.uid}::${event.recurrenceId}` : event.uid
+export function eventKey(event: Pick<CalendarEvent, 'uid' | 'recurrenceId' | 'calendarId'>): string {
+  const local = event.recurrenceId ? `${event.uid}::${event.recurrenceId}` : event.uid
+  return event.calendarId ? `${event.calendarId}/${local}` : local
 }
 
 /**

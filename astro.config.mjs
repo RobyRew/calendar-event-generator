@@ -72,6 +72,9 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
+    // @robyrew/astro-logto ships TypeScript source (like web-config); bundle it
+    // into the server build instead of loading it from node_modules at runtime.
+    ssr: { noExternal: ['@robyrew/astro-logto'] },
     define: {
       'import.meta.env.PUBLIC_CLOUD': JSON.stringify(target === 'server' ? 'true' : 'false'),
     },

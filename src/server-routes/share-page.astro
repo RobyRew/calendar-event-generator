@@ -1,0 +1,202 @@
+---
+// /s/[token] — what a share link opens: what is shared, by whom, at which level,
+// a preview at that level, and one-tap subscribe buttons. Editor invites show a
+// sign-in / join step instead.
+import { eq } from 'drizzle-orm'
+import QRCode from 'qrcode'
+import Base from '@/layouts/Base.astro'
+import { getTranslations, t as tr } from '@/i18n'
+import type { Language } from '@/types'
+import { includeAtLevel, redactEvent } from '@/lib/redact'
+import { subscribeLinks } from '@/lib/subscribe-links'
+import { currentUser, getAuth } from '@/server/auth'
+import { calendarRole, eventRole } from '@/server/authz'
+import { getDb } from '@/server/db/client'
+import { users } from '@/server/db/schema'
+import { publicOrigin } from '@/server/env'
+import { feedLevel, resolveShare, shareTitle } from '@/server/feed'
+import { clientIp, take } from '@/server/ratelimit'
+
+function pickLanguage(header: string | null): Language {
+  for (const part of (header ?? '').split(',')) {
+    const code = part.trim().slice(0, 2).toLowerCase()
+    if (code === 'en' || code === 'es' || code === 'ro') return code
+  }
+  return 'en'
+}
+
+const token = Astro.params.token ?? ''
+const lang = pickLanguage(Astro.request.headers.get('accept-language'))
+const t = getTranslations(lang)
+
+Astro.response.headers.set('cache-control', 'no-store')
+Astro.response.headers.set('referrer-policy', 'no-referrer')
+Astro.response.headers.set('x-robots-tag', 'noindex, nofollow')
+
+const limited = !take(`share-page:${clientIp(Astro.request)}`, 60).ok
+const db = getDb()
+const target = limited ? null : resolveShare(db, token)
+if (!target) Astro.response.status = limited ? 429 : 404
+
+const level = target ? feedLevel(target.link) : null
+const isInvite = target?.link.permission === 'edit'
+const title = target ? shareTitle(target, t.busyLabel) : t.linkInvalid
+const owner = target ? db.select().from(users).where(eq(users.id, target.calendar.ownerId)).get() : undefined
+const ownerName = owner?.name || owner?.email || ''
+const links = target && level ? subscribeLinks(publicOrigin(), token, title) : null
+const qr = links ? await QRCode.toString(links.page, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' }) : ''
+
+const levelText = target
+  ? { busy: [t.permBusy, t.permBusyDesc], limited: [t.permLimited, t.permLimitedDesc], full: [t.permFull, t.permFullDesc], edit: [t.permEdit, t.permEditDesc] }[target.link.permission]
+  : null
+
+// Preview, redacted to the link's level (an invite previews nothing until joined).
+const now = Date.now()
+const preview = target && level
+  ? target.events
+      .filter((e) => includeAtLevel(e, level))
+      .map((e) => redactEvent(e, level, { busyLabel: t.busyLabel }))
+      .filter((e) => e.recurrenceRule || Date.parse(e.endDate) >= now)
+      .sort((a, b) => Date.parse(a.startDate) - Date.parse(b.startDate))
+      .slice(0, 12)
+  : []
+const tz = target?.calendar.timezone ?? 'UTC'
+const when = (iso: string, allDay: boolean) =>
+  new Intl.DateTimeFormat(lang, allDay ? { dateStyle: 'medium', timeZone: tz } : { dateStyle: 'medium', timeStyle: 'short', timeZone: tz }).format(new Date(iso))
+
+// Invite state.
+const authAvailable = !!getAuth()
+const user = isInvite ? await currentUser(Astro.request) : null
+const joinedRole = user && target
+  ? (target.link.eventUid ? eventRole(db, user.id, target.calendar, target.link.eventUid) : calendarRole(db, user.id, target.calendar))
+  : null
+const isEditor = joinedRole === 'owner' || joinedRole === 'editor'
+const signInHref = `/api/auth/sign-in?returnTo=${encodeURIComponent(`/s/${token}`)}`
+---
+<Base title={title} private>
+  <main class="min-h-dvh bg-surface text-text">
+    <div class="max-w-xl mx-auto px-4 py-10 space-y-6">
+      <a href="/" class="inline-flex items-center gap-2 text-sm text-text-3 hover:text-text">
+        <img src="/favicon.svg" alt="" width="20" height="20" /> CalGen
+      </a>
+
+      {!target && (
+        <section class="space-y-2">
+          <h1 class="text-2xl font-semibold">{t.linkInvalid}</h1>
+          <p class="text-text-2">{t.linkInvalidDesc}</p>
+        </section>
+      )}
+
+      {target && (
+        <header class="space-y-2">
+          <div class="flex items-center gap-3">
+            <svg width="12" height="12" viewBox="0 0 12 12" class="shrink-0" aria-hidden="true"><circle cx="6" cy="6" r="6" fill={target.calendar.color} /></svg>
+            <h1 class="text-2xl font-semibold break-words">{title}</h1>
+          </div>
+          {ownerName && <p class="text-sm text-text-3">{tr(t, 'sharedBy', { name: ownerName })}</p>}
+          {levelText && (
+            <p class="text-sm text-text-2"><strong class="font-medium text-text">{levelText[0]}.</strong> {levelText[1]}</p>
+          )}
+        </header>
+      )}
+
+      {target && isInvite && (
+        <section class="rounded-xl border border-border bg-surface-2 p-5 space-y-3">
+          <h2 class="text-lg font-semibold">{t.joinTitle}</h2>
+          <p class="text-sm text-text-2">{tr(t, 'joinDesc', { name: target.calendar.name })}</p>
+          {!authAvailable && <p class="text-sm text-danger">{t.accountsUnavailable}</p>}
+          {authAvailable && !user && (
+            <a href={signInHref} class="inline-flex items-center justify-center rounded-lg bg-accent text-accent-text px-4 py-2 font-medium">{t.signInToJoin}</a>
+          )}
+          {user && isEditor && (
+            <p class="text-sm">{t.joined} <a href="/" class="text-accent font-medium">{t.openApp}</a></p>
+          )}
+          {user && !isEditor && (
+            <button id="join" data-token={token} data-error={t.authError} class="inline-flex items-center justify-center rounded-lg bg-accent text-accent-text px-4 py-2 font-medium">{t.join}</button>
+          )}
+        </section>
+      )}
+
+      {links && (
+        <section class="rounded-xl border border-border bg-surface-2 p-5 space-y-4">
+          <div>
+            <h2 class="text-lg font-semibold">{t.subscribe}</h2>
+            <p class="text-sm text-text-2">{t.subscribeHint}</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <a href={links.webcal} class="rounded-lg bg-accent text-accent-text px-4 py-2.5 text-center font-medium">{t.addToApple}</a>
+            <a href={links.google} target="_blank" rel="noopener noreferrer" class="rounded-lg bg-surface-3 px-4 py-2.5 text-center font-medium">{t.addToGoogle}</a>
+            <a href={links.outlookCom} target="_blank" rel="noopener noreferrer" class="rounded-lg bg-surface-3 px-4 py-2.5 text-center font-medium">{t.addToOutlook}</a>
+            <a href={links.office365} target="_blank" rel="noopener noreferrer" class="rounded-lg bg-surface-3 px-4 py-2.5 text-center font-medium">{t.addToOffice365}</a>
+          </div>
+          <p class="text-xs text-text-3">{t.googleSubscribeNote}</p>
+          <div class="flex gap-2 items-center">
+            <input readonly value={links.https} class="flex-1 min-w-0 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-mono" aria-label="Feed URL" />
+            <button data-copy={links.https} data-done={t.copied} class="rounded-lg bg-surface-3 px-3 py-2 text-sm font-medium shrink-0">{t.copyLink}</button>
+          </div>
+          {target?.link.eventUid && (
+            <a href={`${links.https}?download=1`} class="inline-block text-sm text-accent">{t.downloadOnce}</a>
+          )}
+          <div class="w-40 h-40 bg-white rounded-lg p-2" set:html={qr} />
+        </section>
+      )}
+
+      {target && level && (
+        <section class="space-y-2">
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-text-3">{t.upcoming} <span class="normal-case font-normal">· {tz}</span></h2>
+          {preview.length === 0 && <p class="text-sm text-text-3">{t.noUpcoming}</p>}
+          <ul class="divide-y divide-border rounded-xl border border-border">
+            {preview.map((e) => (
+              <li class="px-4 py-3">
+                <div class="font-medium break-words">{e.summary || '—'}</div>
+                <div class="text-sm text-text-2">
+                  {when(e.startDate, e.allDay)}
+                  {e.recurrenceRule && <span class="text-text-3"> · {t.repeats}</span>}
+                </div>
+                {e.location?.text && <div class="text-sm text-text-3 break-words">{e.location.text}</div>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  </main>
+</Base>
+
+<script>
+  // Theme: follow the app's saved choice, else the OS.
+  try {
+    const saved = JSON.parse(localStorage.getItem('calgen_settings') ?? '{}').theme
+    const dark = matchMedia('(prefers-color-scheme: dark)').matches
+    const theme = saved && saved !== 'system' ? saved : dark ? 'dark' : 'light'
+    document.documentElement.setAttribute('data-theme', theme)
+  } catch {
+    /* storage unavailable */
+  }
+
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    btn.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(btn.dataset.copy ?? '')
+      const label = btn.textContent
+      btn.textContent = btn.dataset.done ?? label
+      setTimeout(() => (btn.textContent = label), 1500)
+    })
+  }
+
+  const join = document.querySelector<HTMLButtonElement>('#join')
+  join?.addEventListener('click', async () => {
+    join.disabled = true
+    const res = await fetch(`/api/share/${encodeURIComponent(join.dataset.token ?? '')}/accept`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    })
+    if (res.ok) {
+      window.location.href = '/'
+    } else {
+      join.disabled = false
+      join.insertAdjacentHTML('afterend', `<p class="text-sm text-danger mt-2"></p>`)
+      join.nextElementSibling!.textContent = join.dataset.error ?? 'Error'
+    }
+  })
+</script>
