@@ -8,7 +8,6 @@
     "dev": "astro dev",
     "build": "astro check && astro build",
     "preview": "node ./server.mjs",
-    "lint": "eslint .",
     "test": "TZ=UTC vitest run && TZ=America/New_York vitest run && TZ=Europe/Bucharest vitest run",
     "test:watch": "vitest",
     "build:static": "BUILD_TARGET=static astro build",
