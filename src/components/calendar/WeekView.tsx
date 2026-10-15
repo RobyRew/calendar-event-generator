@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import {
   startOfWeek, endOfWeek, eachDayOfInterval,
-  format, addWeeks, subWeeks, isSameDay, isToday, parseISO,
-} from 'date-fns'
+  format, addWeeks, subWeeks, isSameDay, isToday, } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEventStore } from '@/stores/event-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
-import { cn, formatTime } from '@/lib/utils'
+import { cn, formatTime, eventKey, eventDisplayStart } from '@/lib/utils'
 
 export function WeekView() {
   const [currentWeek, setCurrentWeek] = useState(new Date())
@@ -22,7 +21,7 @@ export function WeekView() {
 
   const eventsForDayHour = (day: Date, hour: number) =>
     events.filter((e) => {
-      const start = parseISO(e.startDate)
+      const start = eventDisplayStart(e)
       return isSameDay(start, day) && start.getHours() === hour
     })
 
@@ -78,10 +77,10 @@ export function WeekView() {
                   >
                     {hourEvents.map((e) => (
                       <div
-                        key={e.uid}
+                        key={eventKey(e)}
                         className="text-[10px] leading-tight truncate px-1 py-0.5 rounded mb-0.5"
                         style={{ backgroundColor: `${e.color || '#007aff'}30`, color: e.color || '#007aff' }}
-                        onClick={(ev) => { ev.stopPropagation(); openEditor(e.uid) }}
+                        onClick={(ev) => { ev.stopPropagation(); openEditor(eventKey(e)) }}
                       >
                         {e.summary}
                       </div>

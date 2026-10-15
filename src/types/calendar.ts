@@ -8,6 +8,8 @@ export type AttendeeStatus = 'NEEDS-ACTION' | 'ACCEPTED' | 'DECLINED' | 'TENTATI
 export type AttendeeType = 'INDIVIDUAL' | 'GROUP' | 'RESOURCE' | 'ROOM' | 'UNKNOWN'
 export type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 export type WeekDay = 'SU' | 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA'
+/** BYDAY entry: a weekday, optionally with an ordinal (`2SU`, `-1FR`). */
+export type ByDay = WeekDay | `${number}${WeekDay}`
 export type TravelAdvisory = 'AUTOMATIC' | 'DISABLED' | 'ENABLED'
 
 export interface GeoLocation {
@@ -45,20 +47,27 @@ export interface EventAttendee {
 }
 
 export interface RecurrenceRule {
-  frequency: RecurrenceFrequency
+  frequency: RecurrenceFrequency | 'HOURLY' | 'MINUTELY' | 'SECONDLY'
   interval: number
   count?: number
+  /** UTC instant (ISO). Exported as a DATE for all-day events, a UTC DATE-TIME otherwise. */
   until?: string
-  byDay?: WeekDay[]
+  byDay?: ByDay[]
   byMonthDay?: number[]
   byMonth?: number[]
   bySetPos?: number[]
+  byYearDay?: number[]
+  byWeekNo?: number[]
+  byHour?: number[]
+  byMinute?: number[]
+  bySecond?: number[]
   weekStart?: WeekDay
 }
 
 export interface EventAlarm {
   uid: string
   action: AlarmAction
+  /** RFC 5545 duration (`-PT15M`, `-P1D`) or, for absolute alarms, a UTC DATE-TIME (`20261015T090000Z`). */
   trigger: string
   triggerRelation: AlarmTriggerRelation
   description: string
@@ -82,6 +91,8 @@ export interface AppleExtensions {
   creatorTeamIdentity?: string
   travelAdvisory?: TravelAdvisory
   structuredData?: string
+  /** Raw parameters of X-APPLE-STRUCTURED-DATA (ENCODING, VALUE, X-APPLE-TYPE…), kept for round trips. */
+  structuredDataParams?: string
   structuredLocation?: string
   endLocation?: EventLocation
   suggestionInfo?: Record<string, string>
@@ -106,9 +117,12 @@ export interface CalendarEvent {
   summary: string
   description: string
   comment: string
+  /** UTC instant (ISO). All-day events: midnight in `timezone`. */
   startDate: string
+  /** UTC instant (ISO). All-day events: exclusive — midnight after the last day. */
   endDate: string
   allDay: boolean
+  /** IANA zone the wall clock is entered and exported in. */
   timezone: string
   status: EventStatus
   classification: EventClassification
@@ -117,7 +131,11 @@ export interface CalendarEvent {
   organizer: EventOrganizer | null
   attendees: EventAttendee[]
   recurrenceRule: RecurrenceRule | null
+  /** EXDATE instants (ISO), each matching an occurrence start. */
   recurrenceExceptions: string[]
+  /** RDATE instants (ISO). Optional so events stored before it existed stay valid. */
+  recurrenceDates?: string[]
+  /** RECURRENCE-ID instant (ISO) for an overridden occurrence; '' for a master/single event. */
   recurrenceId: string
   alarms: EventAlarm[]
   categories: string[]
@@ -159,6 +177,7 @@ export interface CalendarMeta {
   method?: string
   calendarName?: string
   calendarColor?: string
+  calendarTimezone?: string
 }
 
 export interface TimezoneRule {

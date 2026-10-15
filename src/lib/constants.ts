@@ -11,7 +11,8 @@ export const STORAGE_KEYS = {
 } as const
 
 export const DB_NAME = 'CalendarEventGenerator'
-export const DB_VERSION = 1
+/** Current Dexie schema version (see storage.ts for the migration chain). */
+export const DB_VERSION = 3
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',

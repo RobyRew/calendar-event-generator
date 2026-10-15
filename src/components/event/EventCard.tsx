@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { parseISO, differenceInMinutes } from 'date-fns'
-import { cn, downloadFile } from '@/lib/utils'
+import { cn, downloadFile, eventDisplayStart } from '@/lib/utils'
 import type { CalendarEvent } from '@/types'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
@@ -210,7 +210,7 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
             </div>
 
             <p className="text-sm text-text-3 mt-0.5">
-              {formatDate(event.startDate, settings.dateFormat)}
+              {formatDate(eventDisplayStart(event).toISOString(), settings.dateFormat)}
             </p>
 
             {event.location?.text && (

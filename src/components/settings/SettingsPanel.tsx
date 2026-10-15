@@ -3,17 +3,15 @@ import { Toggle } from '@/components/ui/Toggle'
 import { Button } from '@/components/ui/Button'
 import { ColorPicker } from '@/components/ui/ColorPicker'
 import { useSettingsStore } from '@/stores/settings-store'
-import { useEventStore } from '@/stores/event-store'
 import { getTranslations } from '@/i18n'
 import { COMMON_TIMEZONES, REMINDER_PRESETS, DURATION_PRESETS } from '@/lib/constants'
-import { exportAllData, importAllData, getStorageEstimate } from '@/lib/storage'
+import { exportAllData, importAllData, getStorageEstimate, clearAllData } from '@/lib/storage'
 import { downloadFile, readFileAsText } from '@/lib/utils'
 import { useState, useEffect } from 'react'
 import { RotateCcw, Download, Upload, Trash2, HardDrive } from 'lucide-react'
 
 export function SettingsPanel() {
   const { settings, set, resetAll } = useSettingsStore()
-  const { clearAll } = useEventStore()
   const t = getTranslations(settings.language)
   const [storageUsed, setStorageUsed] = useState('')
 
@@ -27,8 +25,8 @@ export function SettingsPanel() {
   }, [])
 
   const handleExportData = async () => {
-    const data = await exportAllData()
-    const json = JSON.stringify(data, null, 2)
+    // exportAllData() already returns JSON; stringifying it again made backups unrestorable.
+    const json = await exportAllData()
     downloadFile(json, `calgen-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
   }
 
@@ -46,9 +44,11 @@ export function SettingsPanel() {
     input.click()
   }
 
-  const handleClearAll = () => {
+  // The confirmation promises events, templates and settings; this used to clear events only.
+  const handleClearAll = async () => {
     if (confirm(t.clearAllConfirm)) {
-      clearAll()
+      await clearAllData()
+      location.reload()
     }
   }
 

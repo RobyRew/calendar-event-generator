@@ -2,7 +2,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import type { EventAlarm } from '@/types'
-import { generateUID } from '@/lib/utils'
+import { generateUID, minutesToTrigger, parseTriggerDuration } from '@/lib/utils'
 import { REMINDER_PRESETS, APPLE_ALARM_SOUNDS } from '@/lib/constants'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
@@ -36,14 +36,22 @@ export function ReminderEditor({ alarms, onChange }: ReminderEditorProps) {
     onChange(alarms.map((a, i) => i === idx ? { ...a, ...partial } : a))
   }
 
-  const triggerOptions = REMINDER_PRESETS.map((p) => ({
-    value: p.value === 0 ? 'PT0M' : `-PT${p.value >= 1440 ? `${p.value / 1440}D` : p.value >= 60 ? `${p.value / 60}H` : `${p.value}M`}`.replace('-PT0.', '-PT'),
+  // Values are RFC 5545 durations; days and weeks go before the "T" (-P1D, -P1W).
+  // The old picker built "-PT1D", which clients reject, so day/week reminders were lost.
+  const presetOptions = REMINDER_PRESETS.map((p) => ({
+    value: minutesToTrigger(p.value),
     label: p.value === 0
       ? t.atTimeOfEvent
       : p.count
         ? t[p.labelKey as keyof typeof t]?.replace('{count}', String(p.count)) ?? `${p.count}`
         : '',
   })).filter(o => o.label)
+
+  // Keep an imported trigger that matches no preset selectable (e.g. 45 minutes before).
+  const optionsFor = (trigger: string) =>
+    presetOptions.some((o) => o.value === trigger)
+      ? presetOptions
+      : [...presetOptions, { value: trigger, label: /^\d{8}T/.test(trigger) ? trigger : `${parseTriggerDuration(trigger)} min` }]
 
   return (
     <div className="space-y-3">
@@ -68,7 +76,7 @@ export function ReminderEditor({ alarms, onChange }: ReminderEditorProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
               label={t.reminders}
-              options={triggerOptions}
+              options={optionsFor(alarm.trigger)}
               value={alarm.trigger}
               onChange={(e) => updateAlarm(idx, { trigger: e.target.value })}
             />

@@ -7,7 +7,7 @@ import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations, t as translate } from '@/i18n'
 import { generateICS } from '@/lib/ics-generator'
 import { generateGoogleCalendarUrl, generateOutlookUrl, generateOffice365Url } from '@/lib/export-urls'
-import { downloadFile } from '@/lib/utils'
+import { downloadFile, eventKey } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useImport, ImportModals } from '@/hooks/use-import'
 
@@ -36,13 +36,13 @@ export function ImportExportPanel() {
     if (allSelected) {
       setSelectedUids(new Set())
     } else {
-      setSelectedUids(new Set(events.map((e) => e.uid)))
+      setSelectedUids(new Set(events.map(eventKey)))
     }
   }
 
   const getExportEvents = () => {
     if (noneSelected) return events // export all if none explicitly selected
-    return events.filter((e) => selectedUids.has(e.uid))
+    return events.filter((e) => selectedUids.has(eventKey(e)))
   }
 
   const handleExportICS = () => {
@@ -71,10 +71,10 @@ export function ImportExportPanel() {
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
     try {
-      const parsed = await importHook.parseFile(file)
+      const parsed = await importHook.parseFiles(files)
       if (parsed.length === 0) {
         setStatus({ type: 'error', message: t.noEventsInFile })
       } else {
@@ -87,7 +87,7 @@ export function ImportExportPanel() {
   }
 
   const selectedForLinks = selectedUids.size === 1
-    ? events.find((e) => selectedUids.has(e.uid)) ?? null
+    ? events.find((e) => selectedUids.has(eventKey(e))) ?? null
     : null
 
   const tabs = [
@@ -139,17 +139,17 @@ export function ImportExportPanel() {
                     <div className="max-h-60 overflow-y-auto rounded-lg border border-border/50 divide-y divide-border/30">
                       {events.map((event) => (
                         <label
-                          key={event.uid}
+                          key={eventKey(event)}
                           className={cn(
                             'flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors',
                             'hover:bg-surface-2',
-                            selectedUids.has(event.uid) && 'bg-accent/5',
+                            selectedUids.has(eventKey(event)) && 'bg-accent/5',
                           )}
                         >
                           <input
                             type="checkbox"
-                            checked={selectedUids.has(event.uid)}
-                            onChange={() => toggleUid(event.uid)}
+                            checked={selectedUids.has(eventKey(event))}
+                            onChange={() => toggleUid(eventKey(event))}
                             className="accent-accent w-4 h-4 rounded shrink-0"
                           />
                           <div

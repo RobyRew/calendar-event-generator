@@ -2,13 +2,12 @@ import { useState, useMemo } from 'react'
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isSameDay, isToday,
-  format, addMonths, subMonths, parseISO,
-} from 'date-fns'
+  format, addMonths, subMonths, } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEventStore } from '@/stores/event-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
-import { cn } from '@/lib/utils'
+import { cn, eventKey, eventDisplayStart } from '@/lib/utils'
 
 export function MonthView() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -32,7 +31,7 @@ export function MonthView() {
   }, [settings.firstDayOfWeek])
 
   const eventsForDay = (day: Date) =>
-    events.filter((e) => isSameDay(parseISO(e.startDate), day))
+    events.filter((e) => isSameDay(eventDisplayStart(e), day))
 
   return (
     <div className="flex flex-col h-full">
@@ -71,7 +70,7 @@ export function MonthView() {
                 inMonth ? 'hover:bg-surface-2' : 'opacity-40',
               )}
               onClick={() => {
-                if (dayEvents.length === 1) openEditor(dayEvents[0]!.uid)
+                if (dayEvents.length === 1) openEditor(eventKey(dayEvents[0]!))
                 else if (dayEvents.length === 0) openEditor()
               }}
             >
@@ -84,10 +83,10 @@ export function MonthView() {
               <div className="space-y-0.5">
                 {dayEvents.slice(0, 3).map((e) => (
                   <div
-                    key={e.uid}
+                    key={eventKey(e)}
                     className="text-[10px] leading-tight truncate px-1 py-0.5 rounded"
                     style={{ backgroundColor: `${e.color || '#007aff'}20`, color: e.color || '#007aff' }}
-                    onClick={(ev) => { ev.stopPropagation(); openEditor(e.uid) }}
+                    onClick={(ev) => { ev.stopPropagation(); openEditor(eventKey(e)) }}
                   >
                     {e.summary}
                   </div>

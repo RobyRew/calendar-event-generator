@@ -22,9 +22,9 @@ export function AppShell({ children }: AppShellProps) {
   const t = getTranslations(settings.language)
   const importHook = useImport()
 
-  const processFile = useCallback(async (file: File) => {
+  const processFiles = useCallback(async (files: File[]) => {
     try {
-      const parsed = await importHook.parseFile(file)
+      const parsed = await importHook.parseFiles(files)
       if (parsed.length === 0) {
         showToast(t.noEventsInFile, 'error')
         return
@@ -64,10 +64,9 @@ export function AppShell({ children }: AppShellProps) {
     dragCountRef.current = 0
     setIsDragging(false)
 
+    // One import choice for everything dropped (each file used to replace the previous prompt).
     const files = Array.from(e.dataTransfer.files)
-    for (const file of files) {
-      await processFile(file)
-    }
+    if (files.length > 0) await processFiles(files)
   }
 
   return (

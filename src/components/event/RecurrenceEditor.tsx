@@ -7,9 +7,15 @@ import { WEEK_DAYS } from '@/lib/constants'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
 import { cn } from '@/lib/utils'
+import { combineWall, toWall, wallDateString } from '@/lib/time'
 import { useState } from 'react'
 
 interface RecurrenceEditorProps {
+  /** Event zone: UNTIL and exception dates are picked as days in this zone. */
+  timezone: string
+  /** First occurrence; an exception on a given day removes the occurrence at this time of day. */
+  startDate: string
+  allDay: boolean
   rule: RecurrenceRule | null
   exceptions: string[]
   onChange: (rule: RecurrenceRule | null) => void
@@ -20,9 +26,19 @@ const DAY_LABELS: Record<WeekDay, string> = {
   SU: 'S', MO: 'M', TU: 'T', WE: 'W', TH: 'T', FR: 'F', SA: 'S',
 }
 
-export function RecurrenceEditor({ rule, exceptions, onChange, onExceptionsChange }: RecurrenceEditorProps) {
+export function RecurrenceEditor({ timezone, startDate, allDay, rule, exceptions, onChange, onExceptionsChange }: RecurrenceEditorProps) {
   const { settings } = useSettingsStore()
   const t = getTranslations(settings.language)
+
+  // The date inputs used `new Date('yyyy-MM-dd')` (UTC midnight), so an exception
+  // never matched the 10:00 occurrence and UNTIL landed a day early west of UTC.
+  const untilFromDate = (dateStr: string) =>
+    combineWall(dateStr, allDay ? '00:00' : '23:59:59', timezone)
+  const occurrenceOn = (dateStr: string) => {
+    if (allDay) return combineWall(dateStr, '00:00', timezone)
+    const w = toWall(startDate, timezone)
+    return combineWall(dateStr, `${w.hour}:${String(w.minute).padStart(2, '0')}:${String(w.second).padStart(2, '0')}`, timezone)
+  }
   const [endType, setEndType] = useState<'never' | 'count' | 'until'>(
     rule?.count ? 'count' : rule?.until ? 'until' : 'never'
   )
@@ -130,7 +146,7 @@ export function RecurrenceEditor({ rule, exceptions, onChange, onExceptionsChang
                     setEndType(type)
                     if (type === 'never') updateRule({ count: undefined, until: undefined })
                     if (type === 'count') updateRule({ count: 10, until: undefined })
-                    if (type === 'until') updateRule({ count: undefined, until: new Date().toISOString() })
+                    if (type === 'until') updateRule({ count: undefined, until: untilFromDate(wallDateString(startDate, timezone)) ?? undefined })
                   }}
                   className={cn(
                     'px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
@@ -159,8 +175,11 @@ export function RecurrenceEditor({ rule, exceptions, onChange, onExceptionsChang
             {endType === 'until' && (
               <Input
                 type="date"
-                value={rule.until ? new Date(rule.until).toISOString().split('T')[0] : ''}
-                onChange={(e) => updateRule({ until: new Date(e.target.value).toISOString() })}
+                value={rule.until ? wallDateString(rule.until, timezone) : ''}
+                onChange={(e) => {
+                  const until = untilFromDate(e.target.value)
+                  if (until) updateRule({ until })
+                }}
                 className="animate-fade-in"
               />
             )}
@@ -178,10 +197,12 @@ export function RecurrenceEditor({ rule, exceptions, onChange, onExceptionsChang
               <div key={idx} className="flex items-center gap-2">
                 <Input
                   type="date"
-                  value={new Date(ex).toISOString().split('T')[0]}
+                  value={wallDateString(ex, timezone)}
                   onChange={(e) => {
+                    const at = occurrenceOn(e.target.value)
+                    if (!at) return
                     const next = [...exceptions]
-                    next[idx] = new Date(e.target.value).toISOString()
+                    next[idx] = at
                     onExceptionsChange(next)
                   }}
                   className="flex-1"
@@ -199,7 +220,7 @@ export function RecurrenceEditor({ rule, exceptions, onChange, onExceptionsChang
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onExceptionsChange([...exceptions, new Date().toISOString()])}
+              onClick={() => onExceptionsChange([...exceptions, startDate])}
             >
               + {t.addException}
             </Button>

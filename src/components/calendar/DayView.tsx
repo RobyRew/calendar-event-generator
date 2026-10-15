@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEventStore } from '@/stores/event-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
-import { cn, formatTime } from '@/lib/utils'
+import { cn, formatTime, eventKey, eventDisplayStart } from '@/lib/utils'
 
 export function DayView() {
   const [currentDay, setCurrentDay] = useState(new Date())
@@ -13,7 +13,7 @@ export function DayView() {
   const { settings } = useSettingsStore()
 
   const hours = Array.from({ length: 24 }, (_, i) => i)
-  const dayEvents = events.filter((e) => isSameDay(parseISO(e.startDate), currentDay))
+  const dayEvents = events.filter((e) => isSameDay(eventDisplayStart(e), currentDay))
   const allDayEvents = dayEvents.filter((e) => e.allDay)
   const timedEvents = dayEvents.filter((e) => !e.allDay)
 
@@ -40,8 +40,8 @@ export function DayView() {
         <div className="px-4 py-2 border-b border-border space-y-1 shrink-0">
           {allDayEvents.map((e) => (
             <button
-              key={e.uid}
-              onClick={() => openEditor(e.uid)}
+              key={eventKey(e)}
+              onClick={() => openEditor(eventKey(e))}
               className="block w-full text-left text-sm px-2 py-1 rounded-md truncate"
               style={{ backgroundColor: `${e.color || '#007aff'}20`, color: e.color || '#007aff' }}
             >
@@ -68,8 +68,8 @@ export function DayView() {
                 <div className="flex-1 border-l border-border/30 px-1 py-0.5">
                   {hourEvents.map((e) => (
                     <button
-                      key={e.uid}
-                      onClick={(ev) => { ev.stopPropagation(); openEditor(e.uid) }}
+                      key={eventKey(e)}
+                      onClick={(ev) => { ev.stopPropagation(); openEditor(eventKey(e)) }}
                       className="block w-full text-left text-sm px-2 py-1 rounded-md mb-0.5 truncate"
                       style={{ backgroundColor: `${e.color || '#007aff'}20`, color: e.color || '#007aff' }}
                     >

@@ -9,7 +9,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { getTranslations } from '@/i18n'
 import { getAllTemplates, putTemplate, deleteTemplate as removeTemplate } from '@/lib/storage'
 import { getLocalizedTemplate } from '@/lib/default-templates'
-import { createDefaultEvent, generateUID } from '@/lib/utils'
+import { createDefaultEvent, generateUID, eventKey } from '@/lib/utils'
 import type { EventTemplate } from '@/types'
 import { useLiveQuery } from 'dexie-react-hooks'
 
@@ -29,6 +29,9 @@ export function TemplateSelector() {
     const localized = template.isBuiltIn ? getLocalizedTemplate(template, settings.language) : template
     const event = createDefaultEvent({
       ...localized.event,
+      // Fresh alarm UIDs per event (templates ship fixed ones), and no
+      // X-APPLE-DEFAULT-ALARM flag, which lets Apple replace the alarm.
+      alarms: (localized.event.alarms ?? []).map((a) => ({ ...a, uid: generateUID(), isDefault: false })),
       uid: generateUID(),
       created: new Date().toISOString(),
       lastModified: new Date().toISOString(),
@@ -36,7 +39,7 @@ export function TemplateSelector() {
     })
     await addEvent(event)
     setActiveView('events')
-    openEditor(event.uid)
+    openEditor(eventKey(event))
   }
 
   const handleSaveTemplate = async () => {

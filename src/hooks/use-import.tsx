@@ -5,10 +5,17 @@ import { Modal } from '@/components/ui/Modal'
 import { useEventStore } from '@/stores/event-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations, t as translate } from '@/i18n'
-import { parseICS } from '@/lib/ics-parser'
-import { readFileAsText, generateUID } from '@/lib/utils'
+import { parseICSFile } from '@/lib/ics-parser'
+import { normalizeEvent } from '@/lib/normalize'
+import { readFileAsText, generateUID, eventKey } from '@/lib/utils'
 import { putTemplate } from '@/lib/storage'
 import type { CalendarEvent, EventTemplate } from '@/types'
+
+/** ICS stores LAST-MODIFIED to the second; comparing milliseconds made every re-import look modified. */
+function sameVersion(a: CalendarEvent, b: CalendarEvent): boolean {
+  const secs = (iso: string) => (iso ? Math.floor(new Date(iso).getTime() / 1000) : 0)
+  return a.sequence === b.sequence && secs(a.lastModified) === secs(b.lastModified)
+}
 
 export function useImport() {
   const { events, importEvents } = useEventStore()
@@ -20,16 +27,23 @@ export function useImport() {
     fresh: CalendarEvent[]
   } | null>(null)
 
-  const parseFile = useCallback(async (file: File): Promise<CalendarEvent[]> => {
-    const text = await readFileAsText(file)
-    if (file.name.endsWith('.ics')) {
-      return parseICS(text).events
-    } else if (file.name.endsWith('.json')) {
-      const data = JSON.parse(text)
-      return Array.isArray(data) ? data : data.events ?? []
+  /** Parse every file (the picker and drag & drop both allow several); extensions match case-insensitively. */
+  const parseFiles = useCallback(async (files: File[]): Promise<CalendarEvent[]> => {
+    const out: CalendarEvent[] = []
+    for (const file of files) {
+      const name = file.name.toLowerCase()
+      if (name.endsWith('.ics') || name.endsWith('.ical') || name.endsWith('.ifb') || file.type === 'text/calendar') {
+        out.push(...(await parseICSFile(file)).events)
+      } else if (name.endsWith('.json') || file.type === 'application/json') {
+        const data = JSON.parse(await readFileAsText(file)) as unknown
+        const list = Array.isArray(data) ? data : ((data as { events?: unknown })?.events ?? [])
+        if (Array.isArray(list)) out.push(...list.map((e) => normalizeEvent(e as Partial<CalendarEvent>)))
+      }
     }
-    return []
+    return out
   }, [])
+
+  const parseFile = useCallback((file: File) => parseFiles([file]), [parseFiles])
 
   const openImportChoice = useCallback((parsed: CalendarEvent[]) => {
     setImportChoiceEvents(parsed)
@@ -42,18 +56,18 @@ export function useImport() {
   const handleImportAsEvents = useCallback(async (): Promise<{ count: number } | null> => {
     if (!importChoiceEvents) return null
 
-    const existingUids = new Set(events.map((e) => e.uid))
-    const duplicates = importChoiceEvents.filter((e) => existingUids.has(e.uid))
-    const fresh = importChoiceEvents.filter((e) => !existingUids.has(e.uid))
+    const existingByKey = new Map(events.map((e) => [eventKey(e), e]))
+    const duplicates = importChoiceEvents.filter((e) => existingByKey.has(eventKey(e)))
+    const fresh = importChoiceEvents.filter((e) => !existingByKey.has(eventKey(e)))
 
     if (duplicates.length > 0) {
       const modifiedDuplicates: CalendarEvent[] = []
       const unmodifiedDuplicates: CalendarEvent[] = []
 
       for (const dup of duplicates) {
-        const existing = events.find((e) => e.uid === dup.uid)
-        if (existing && existing.lastModified !== dup.lastModified) {
-          modifiedDuplicates.push({ ...dup, uid: generateUID() })
+        const existing = existingByKey.get(eventKey(dup))
+        if (existing && !sameVersion(existing, dup)) {
+          modifiedDuplicates.push({ ...dup, uid: generateUID(), recurrenceId: '' })
         } else {
           unmodifiedDuplicates.push(dup)
         }
@@ -98,7 +112,7 @@ export function useImport() {
 
   const handleDuplicateCreateNew = useCallback(async (): Promise<{ count: number } | null> => {
     if (!duplicateChoice) return null
-    const renamed = duplicateChoice.duplicates.map((e) => ({ ...e, uid: generateUID() }))
+    const renamed = duplicateChoice.duplicates.map((e) => ({ ...e, uid: generateUID(), recurrenceId: '' }))
     const all = [...duplicateChoice.fresh, ...renamed]
     await importEvents(all)
     const count = all.length
@@ -146,6 +160,7 @@ export function useImport() {
 
   return {
     parseFile,
+    parseFiles,
     importChoiceEvents,
     openImportChoice,
     closeImportChoice,

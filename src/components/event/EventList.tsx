@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import { parseISO, compareAsc } from 'date-fns'
+import { compareAsc } from 'date-fns'
 import { Plus, Calendar as CalIcon } from 'lucide-react'
 import { useEventStore } from '@/stores/event-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
-import { generateUID } from '@/lib/utils'
+import { generateUID, eventKey, eventDisplayStart } from '@/lib/utils'
 import { EventCard } from './EventCard'
 import { EventEditor } from './EventEditor'
 import { Button } from '@/components/ui/Button'
@@ -27,7 +27,7 @@ export function EventList() {
         e.categories.some((c) => c.toLowerCase().includes(q))
       )
     }
-    list.sort((a, b) => compareAsc(parseISO(a.startDate), parseISO(b.startDate)))
+    list.sort((a, b) => compareAsc(eventDisplayStart(a), eventDisplayStart(b)))
     return list
   }, [events, searchQuery])
 
@@ -36,6 +36,8 @@ export function EventList() {
     const duplicate = {
       ...event,
       uid: newUid,
+      recurrenceId: '',
+      sequence: 0,
       summary: `${event.summary} (copy)`,
       created: new Date().toISOString(),
       lastModified: new Date().toISOString(),
@@ -44,13 +46,13 @@ export function EventList() {
     openEditor(newUid)
   }
 
-  const handleCardClick = (eventUid: string) => {
-    if (isEditorOpen && editingEventId === eventUid) {
+  const handleCardClick = (key: string) => {
+    if (isEditorOpen && editingEventId === key) {
       // Let the editor's close button handle it (which checks for unsaved changes)
       // Dispatch a custom event that EventEditor listens for
       window.dispatchEvent(new CustomEvent('calgen:request-close'))
     } else {
-      openEditor(eventUid)
+      openEditor(key)
     }
   }
 
@@ -81,17 +83,17 @@ export function EventList() {
       )}
 
       {filtered.map((event) => (
-        <div key={event.uid}>
+        <div key={eventKey(event)}>
           <EventCard
             event={event}
-            compact={settings.compactEventCards && !(isEditorOpen && editingEventId === event.uid)}
-            onClick={() => handleCardClick(event.uid)}
-            onEdit={() => handleCardClick(event.uid)}
+            compact={settings.compactEventCards && !(isEditorOpen && editingEventId === eventKey(event))}
+            onClick={() => handleCardClick(eventKey(event))}
+            onEdit={() => handleCardClick(eventKey(event))}
             onDuplicate={() => handleDuplicate(event)}
-            onDelete={() => deleteEvent(event.uid)}
+            onDelete={() => deleteEvent(eventKey(event))}
           />
           {/* Inline editor below active card */}
-          {isEditorOpen && editingEventId === event.uid && (
+          {isEditorOpen && editingEventId === eventKey(event) && (
             <div className="mt-2">
               <EventEditor inline />
             </div>

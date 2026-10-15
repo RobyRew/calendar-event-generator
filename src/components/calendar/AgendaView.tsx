@@ -5,6 +5,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
 import { EventCard } from '@/components/event/EventCard'
+import { eventKey, eventDisplayStart } from '@/lib/utils'
 
 export function AgendaView() {
   const { events } = useEventStore()
@@ -13,10 +14,10 @@ export function AgendaView() {
   const t = getTranslations(settings.language)
 
   const grouped = useMemo(() => {
-    const sorted = [...events].sort((a, b) => compareAsc(parseISO(a.startDate), parseISO(b.startDate)))
+    const sorted = [...events].sort((a, b) => compareAsc(eventDisplayStart(a), eventDisplayStart(b)))
     const groups: Record<string, typeof events> = {}
     for (const event of sorted) {
-      const key = format(parseISO(event.startDate), 'yyyy-MM-dd')
+      const key = format(eventDisplayStart(event), 'yyyy-MM-dd')
       if (!groups[key]) groups[key] = []
       groups[key].push(event)
     }
@@ -45,10 +46,10 @@ export function AgendaView() {
           <div className="space-y-2">
             {dayEvents.map((event) => (
               <EventCard
-                key={event.uid}
+                key={eventKey(event)}
                 event={event}
                 compact={settings.compactEventCards}
-                onClick={() => openEditor(event.uid)}
+                onClick={() => openEditor(eventKey(event))}
               />
             ))}
           </div>

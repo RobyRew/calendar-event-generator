@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { format, parseISO, addMinutes } from 'date-fns'
 import { Save, Trash2, Copy, X } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
@@ -18,7 +17,8 @@ import { useEventStore } from '@/stores/event-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
-import { createDefaultEvent, generateUID, cn } from '@/lib/utils'
+import { createDefaultEvent, generateUID, cn, eventKey, minutesToTrigger } from '@/lib/utils'
+import { addDaysIn, combineWall, fromWall, startOfDayIn, toWall, wallDateString, wallTimeString } from '@/lib/time'
 import { COMMON_TIMEZONES } from '@/lib/constants'
 import { useIsMobile } from '@/hooks/use-media-query'
 
@@ -33,13 +33,15 @@ export function EventEditor({ inline }: EventEditorProps) {
   const t = getTranslations(settings.language)
   const isMobile = useIsMobile()
 
-  const existingEvent = editingEventId ? events.find((e) => e.uid === editingEventId) : null
+  const existingEvent = editingEventId ? events.find((e) => eventKey(e) === editingEventId) : null
   const [event, setEvent] = useState<CalendarEvent>(() =>
     existingEvent ? { ...existingEvent } : createDefaultEvent({
       color: settings.defaultCalendarColor,
       timezone: settings.defaultTimezone,
+      // Not flagged X-APPLE-DEFAULT-ALARM: Apple may swap a "default" alarm for the
+      // user's own default alert, dropping the one chosen here.
       alarms: settings.defaultReminder >= 0
-        ? [{ uid: generateUID(), action: 'DISPLAY', trigger: `-PT${settings.defaultReminder}M`, triggerRelation: 'START', description: 'Reminder', isDefault: true }]
+        ? [{ uid: generateUID(), action: 'DISPLAY', trigger: minutesToTrigger(settings.defaultReminder), triggerRelation: 'START', description: 'Reminder', isDefault: false }]
         : [],
     })
   )
@@ -93,6 +95,7 @@ export function EventEditor({ inline }: EventEditorProps) {
     const dup = createDefaultEvent({
       ...event,
       uid: generateUID(),
+      recurrenceId: '',
       summary: `${event.summary} (copy)`,
       created: new Date().toISOString(),
       lastModified: new Date().toISOString(),
@@ -102,42 +105,81 @@ export function EventEditor({ inline }: EventEditorProps) {
     closeEditor()
   }
 
-  const startDateStr = format(parseISO(event.startDate), 'yyyy-MM-dd')
-  const endDateStr = format(parseISO(event.endDate), 'yyyy-MM-dd')
-  const startTimeStr = format(parseISO(event.startDate), 'HH:mm')
-  const endTimeStr = format(parseISO(event.endDate), 'HH:mm')
+  // Dates and times are edited as wall-clock values in the event's own zone (not
+  // the browser's), so "10:00 America/New_York" means 10:00 in New York everywhere.
+  const tz = event.timezone
+  // All-day ends are stored exclusive (midnight after the last day); show the last day.
+  const endShown = event.allDay ? addDaysIn(event.endDate, -1, tz) : event.endDate
+  const startDateStr = wallDateString(event.startDate, tz)
+  const endDateStr = wallDateString(endShown, tz)
+  const startTimeStr = wallTimeString(event.startDate, tz)
+  const endTimeStr = wallTimeString(event.endDate, tz)
 
-  const setStartDate = (dateStr: string) => {
-    const [h, m] = startTimeStr.split(':').map(Number)
-    const newStart = new Date(`${dateStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`)
-    if (isNaN(newStart.getTime())) return
-    update('startDate', newStart.toISOString())
-    if (newStart >= parseISO(event.endDate)) {
-      update('endDate', addMinutes(newStart, settings.defaultDuration).toISOString())
-    }
+  const daysBetween = (a: string, b: string) => {
+    const wa = toWall(a, tz), wb = toWall(b, tz)
+    return Math.round((Date.UTC(wb.year, wb.month - 1, wb.day) - Date.UTC(wa.year, wa.month - 1, wa.day)) / 86_400_000)
   }
 
-  const setEndDate = (dateStr: string) => {
-    const [h, m] = endTimeStr.split(':').map(Number)
-    const newEnd = new Date(`${dateStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`)
-    if (isNaN(newEnd.getTime())) return
-    update('endDate', newEnd.toISOString())
+  /** Move the start, keeping the event's length. */
+  const moveStart = (dateStr: string, timeStr: string) => {
+    const newStart = combineWall(dateStr, event.allDay ? '00:00' : timeStr, tz)
+    if (!newStart) return
+    setEvent((prev) => {
+      const endDate = prev.allDay
+        ? addDaysIn(newStart, Math.max(1, daysBetween(prev.startDate, prev.endDate)), tz)
+        : new Date(new Date(newStart).getTime() + Math.max(0, new Date(prev.endDate).getTime() - new Date(prev.startDate).getTime())).toISOString()
+      return { ...prev, startDate: newStart, endDate }
+    })
   }
 
-  const setStartTime = (timeStr: string) => {
-    const newStart = new Date(`${startDateStr}T${timeStr}:00`)
-    if (isNaN(newStart.getTime())) return
-    update('startDate', newStart.toISOString())
-    if (newStart >= parseISO(event.endDate)) {
-      update('endDate', addMinutes(newStart, settings.defaultDuration).toISOString())
-    }
+  const moveEnd = (dateStr: string, timeStr: string) => {
+    const newEnd = event.allDay
+      ? (() => { const d = combineWall(dateStr, '00:00', tz); return d ? addDaysIn(d, 1, tz) : null })()
+      : combineWall(dateStr, timeStr, tz)
+    if (!newEnd) return
+    update('endDate', newEnd)
   }
 
-  const setEndTime = (timeStr: string) => {
-    const newEnd = new Date(`${endDateStr}T${timeStr}:00`)
-    if (isNaN(newEnd.getTime())) return
-    update('endDate', newEnd.toISOString())
+  const setStartDate = (dateStr: string) => moveStart(dateStr, startTimeStr)
+  const setStartTime = (timeStr: string) => moveStart(startDateStr, timeStr)
+  const setEndDate = (dateStr: string) => moveEnd(dateStr, endTimeStr)
+  const setEndTime = (timeStr: string) => moveEnd(endDateStr, timeStr)
+
+  const setAllDay = (allDay: boolean) => {
+    setEvent((prev) => {
+      if (allDay) {
+        const startDate = startOfDayIn(prev.startDate, tz)
+        // Cover every day the timed event touches; the end is exclusive.
+        const lastInstant = new Date(Math.max(new Date(prev.startDate).getTime(), new Date(prev.endDate).getTime() - 1)).toISOString()
+        const endDate = addDaysIn(startOfDayIn(lastInstant, tz), 1, tz)
+        return { ...prev, allDay, startDate, endDate }
+      }
+      const startDate = combineWall(wallDateString(prev.startDate, tz), '09:00', tz) ?? prev.startDate
+      const endDate = new Date(new Date(startDate).getTime() + settings.defaultDuration * 60_000).toISOString()
+      return { ...prev, allDay, startDate, endDate }
+    })
   }
+
+  /** Changing the zone keeps the wall clock ("10:00") and moves the instant. */
+  const setTimezone = (newTz: string) => {
+    setEvent((prev) => {
+      const move = (iso: string) => fromWall(toWall(iso, prev.timezone), newTz)
+      return {
+        ...prev,
+        timezone: newTz,
+        startDate: move(prev.startDate),
+        endDate: move(prev.endDate),
+        recurrenceExceptions: prev.recurrenceExceptions.map(move),
+        recurrenceRule: prev.recurrenceRule?.until
+          ? { ...prev.recurrenceRule, until: move(prev.recurrenceRule.until) }
+          : prev.recurrenceRule,
+      }
+    })
+  }
+
+  const timezoneOptions = (COMMON_TIMEZONES as readonly string[]).includes(event.timezone)
+    ? COMMON_TIMEZONES.map((z) => ({ value: z, label: z.replace(/_/g, ' ') }))
+    : [{ value: event.timezone, label: event.timezone.replace(/_/g, ' ') }, ...COMMON_TIMEZONES.map((z) => ({ value: z, label: z.replace(/_/g, ' ') }))]
 
   const tabs = [
     { id: 'basic', label: isMobile ? '📝' : t.eventTitle },
@@ -239,7 +281,7 @@ export function EventEditor({ inline }: EventEditorProps) {
                   <Toggle
                     label={t.allDay}
                     checked={event.allDay}
-                    onChange={(checked) => update('allDay', checked)}
+                    onChange={setAllDay}
                   />
                   <Input
                     label={t.startDate}
@@ -269,9 +311,9 @@ export function EventEditor({ inline }: EventEditorProps) {
                   )}
                   <Select
                     label={t.timezone}
-                    options={COMMON_TIMEZONES.map((tz) => ({ value: tz, label: tz.replace(/_/g, ' ') }))}
+                    options={timezoneOptions}
                     value={event.timezone}
-                    onChange={(e) => update('timezone', e.target.value)}
+                    onChange={(e) => setTimezone(e.target.value)}
                   />
                 </div>
               )}
@@ -285,6 +327,9 @@ export function EventEditor({ inline }: EventEditorProps) {
 
               {activeTab === 'recurrence' && (
                 <RecurrenceEditor
+                  timezone={event.timezone}
+                  startDate={event.startDate}
+                  allDay={event.allDay}
                   rule={event.recurrenceRule}
                   exceptions={event.recurrenceExceptions}
                   onChange={(rule) => update('recurrenceRule', rule)}
@@ -303,7 +348,7 @@ export function EventEditor({ inline }: EventEditorProps) {
                 <AttendeeEditor
                   organizer={event.organizer}
                   attendees={event.attendees}
-                  onOrganizerChange={(org) => update('organizer', org)}
+                  onOrganizerChange={(org) => update('organizer', org && (org.name.trim() || org.email.trim()) ? org : null)}
                   onAttendeesChange={(atts) => update('attendees', atts)}
                 />
               )}

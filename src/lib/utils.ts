@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { format, parseISO, addMinutes } from 'date-fns'
 import type { CalendarEvent, DateFormat, TimeFormat } from '@/types'
 import { DEFAULT_SETTINGS } from './constants'
+import { formatDuration as formatRfcDuration, parseDuration, toWall } from './time'
 
 export function cn(...classes: (string | boolean | undefined | null)[]): string {
   return classes.filter(Boolean).join(' ')
@@ -83,30 +84,35 @@ export function formatDuration(minutes: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`
 }
 
+/** Minutes before the event (positive = before) for an alarm trigger; 0 when absolute or invalid. */
 export function parseTriggerDuration(trigger: string): number {
-  const neg = trigger.startsWith('-')
-  const match = trigger.match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-  if (!match) return 0
-  const days = parseInt(match[1] || '0', 10)
-  const hours = parseInt(match[2] || '0', 10)
-  const mins = parseInt(match[3] || '0', 10)
-  const total = days * 1440 + hours * 60 + mins
-  return neg ? total : -total
+  const seconds = parseDuration(trigger)
+  return seconds === null ? 0 : Math.round(-seconds / 60)
 }
 
+/** RFC 5545 trigger for "N minutes before": days go before the `T` (`-P1D`, not `-PT1D`). */
 export function minutesToTrigger(minutes: number): string {
-  if (minutes <= 0) return 'PT0M'
-  const d = Math.floor(minutes / 1440)
-  const h = Math.floor((minutes % 1440) / 60)
-  const m = minutes % 60
-  let result = '-P'
-  if (d > 0) result += `${d}D`
-  if (h > 0 || m > 0) {
-    result += 'T'
-    if (h > 0) result += `${h}H`
-    if (m > 0) result += `${m}M`
-  }
-  return result
+  if (minutes <= 0) return 'PT0S'
+  return formatRfcDuration(-minutes * 60)
+}
+
+/**
+ * Identity of an event row. A recurring master and its overridden occurrences share
+ * a UID (RFC 5545), so the UID alone used to make an override overwrite its master.
+ */
+export function eventKey(event: Pick<CalendarEvent, 'uid' | 'recurrenceId'>): string {
+  return event.recurrenceId ? `${event.uid}::${event.recurrenceId}` : event.uid
+}
+
+/**
+ * The moment views place an event at. All-day events are a date in their own zone,
+ * so they map to local midnight of that date — reading the stored instant in the
+ * browser's zone put a Bucharest all-day event on the previous day in Madrid.
+ */
+export function eventDisplayStart(event: Pick<CalendarEvent, 'startDate' | 'allDay' | 'timezone'>): Date {
+  if (!event.allDay) return new Date(event.startDate)
+  const w = toWall(event.startDate, event.timezone)
+  return new Date(w.year, w.month - 1, w.day)
 }
 
 export function downloadFile(content: string, filename: string, mimeType: string): void {
