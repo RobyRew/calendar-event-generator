@@ -1,11 +1,15 @@
 node_modules
 dist
+data
+.astro
 .git
 .gitignore
 README.md
+docs
+tests
 *.log
 .DS_Store
 .env
 .env.*
-# Must reach the build context or Vite sees no VITE_UMAMI_* values.
+# Must reach the build context or Astro sees no PUBLIC_UMAMI_* values.
 !.env.production
