@@ -2,12 +2,12 @@
 // every response — prerendered pages and static assets included, which Astro's
 // middleware never sees — gets the shared security headers. Script and style
 // sources come from Astro's per-page <meta> CSP (security.csp); the header adds
-// what a meta tag cannot carry. See @robyrew/web-config/security-headers.
+// what a meta tag cannot carry. See scripts/security-headers.mjs.
 //
 // Boot order: autostart must be disabled before entry.mjs is imported, hence the
 // dynamic import.
 import http from 'node:http'
-import { securityHeaders } from '@robyrew/web-config/security-headers'
+import { securityHeaders } from './scripts/security-headers.mjs'
 
 process.env.ASTRO_NODE_AUTOSTART = 'disabled'
 const { handler } = await import('./dist/server/entry.mjs')

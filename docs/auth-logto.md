@@ -1,6 +1,6 @@
 # Accounts — Logto
 
-CalGen signs users in through the self-hosted Logto IdP at `https://auth.robyrew.com`, registered as a **Traditional Web** application. The redirect, PKCE and code exchange run on the server (`@robyrew/astro-logto`). The OIDC tokens are kept server-side in SQLite (`logto_sessions`), and the browser only holds an opaque, `httpOnly` session-id cookie. Cross-app recipe: Obsidian → Infrastructure → VPS-Ionos → *13 App integration with Logto*.
+CalGen signs users in through the self-hosted Logto IdP at `https://auth.robyrew.com`, registered as a **Traditional Web** application. The redirect, PKCE and code exchange run on the server (`src/server/logto/`, built on `@logto/node`). The OIDC tokens are kept server-side in SQLite (`logto_sessions`), and the browser only holds an opaque, `httpOnly` session-id cookie. Cross-app recipe: Obsidian → Infrastructure → VPS-Ionos → *13 App integration with Logto*.
 
 Accounts exist only in the server build. Without `LOGTO_*` set, `/api/me` reports `available: false`, the Account view says accounts are unavailable, and the app keeps working on the device.
 

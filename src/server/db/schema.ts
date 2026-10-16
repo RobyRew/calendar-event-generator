@@ -15,7 +15,7 @@ export const users = sqliteTable('users', {
   createdAt: integer('created_at').notNull(),
 })
 
-// Server-side OIDC token store (@robyrew/astro-logto sqliteSessionStore). The
+// Server-side OIDC token store (src/server/logto/sqlite-store.ts). The
 // browser holds only the opaque session-id cookie.
 export const logtoSessions = sqliteTable(
   'logto_sessions',

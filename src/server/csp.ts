@@ -1,4 +1,4 @@
-import { HEADER_CSP } from '@robyrew/web-config/security-headers'
+import { HEADER_CSP } from '../../scripts/security-headers.mjs'
 
 /**
  * On server-rendered pages Astro sends its hashed script/style policy as a

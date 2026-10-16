@@ -7,7 +7,7 @@ WORKDIR /app
 
 RUN apk add --no-cache python3 make g++
 
-COPY package.json package-lock.json .npmrc ./
+COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
 COPY . .
@@ -21,7 +21,7 @@ RUN npm prune --omit=dev
 # ─────────────────────────────────────────────────────────────────────────────
 # Runtime — Node server, non-root. The app moved off the static-web image when
 # it gained accounts and live feeds; server.mjs sends the same security headers
-# (@robyrew/web-config/security-headers).
+# (scripts/security-headers.mjs).
 # ─────────────────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS runtime
 WORKDIR /app

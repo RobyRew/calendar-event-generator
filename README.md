@@ -109,7 +109,7 @@ Links can be named, given an expiry, revoked, or given a new URL. Google Calenda
 | Styling | Tailwind CSS 4, [`@robyrew/web-config`](https://github.com/RobyRew/web-config) / `@robyrew/ui` |
 | Device storage | Dexie (IndexedDB), Zustand |
 | Server storage | SQLite (better-sqlite3) via Drizzle |
-| Accounts | Logto via [`@robyrew/astro-logto`](https://github.com/RobyRew/astro-logto) |
+| Accounts | Logto (auth.robyrew.com), Traditional Web flow in `src/server/logto/` |
 | Dates | date-fns 4, `@date-fns/tz`, `timezones-ical-library` |
 | Tests | Vitest, with ical.js as an independent parser |
 | PWA | workbox-build |
