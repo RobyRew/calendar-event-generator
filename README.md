@@ -171,7 +171,7 @@ Multi-stage build: `node:22-alpine` builds, then a non-root `node:22-alpine` run
 
 - Domain `calendar.robyrew.com` → port **4321**
 - Environment: `LOGTO_ENDPOINT`, `LOGTO_APP_ID`, `LOGTO_APP_SECRET`, `PUBLIC_SITE_URL=https://calendar.robyrew.com`
-- Advanced → Volumes → bind mount `/opt/calendar-event-generator/data` → `/app/data`. The container runs as uid 100 / gid 101, so the host directory must be owned by them. The infrastructure repo's `dokploy_app_data_dirs` creates it that way; by hand: `sudo install -d -o 100 -g 101 -m 750 /opt/calendar-event-generator/data`
+- Advanced → Volumes → **Volume Mount** (a named volume): name `calendar-event-generator-data`, mount path `/app/data`. Docker creates the volume on the first deploy and seeds it from the image's `/app/data`, which is owned by the container's uid 100 / gid 101, so no host directory or `chown` is involved. The volume survives redeploys; the infrastructure repo backs it up through `backup_docker_volumes`. Without it, the database lives in the container and each deploy starts with an empty one.
 - Memory limit 256 MB
 
 </details>
