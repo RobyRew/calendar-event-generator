@@ -19,9 +19,10 @@ import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
 import { createDefaultEvent, generateUID, cn, eventKey, minutesToTrigger } from '@/lib/utils'
 import { addDaysIn, combineWall, fromWall, startOfDayIn, toWall, wallDateString, wallTimeString } from '@/lib/time'
+import { reanchorRecurrence } from '@/lib/recurrence-edit'
 import { COMMON_TIMEZONES } from '@/lib/constants'
 import { useIsMobile } from '@/hooks/use-media-query'
-import { useAccountStore, writableCalendars } from '@/stores/account-store'
+import { duplicateCalendarId, useAccountStore, writableCalendars } from '@/stores/account-store'
 import { CLOUD } from '@/lib/cloud/api'
 
 interface EventEditorProps {
@@ -49,11 +50,18 @@ export function EventEditor({ inline }: EventEditorProps) {
   )
   const originalRef = useRef(JSON.stringify(existingEvent ?? event))
 
+  // Take in a newer stored version only when there is nothing unsaved: a refresh of
+  // the account events (on tab focus) used to overwrite text being typed and clear
+  // the unsaved-changes prompt.
   useEffect(() => {
-    if (existingEvent) {
-      setEvent({ ...existingEvent })
-      originalRef.current = JSON.stringify(existingEvent)
-    }
+    if (!existingEvent) return
+    const incoming = JSON.stringify(existingEvent)
+    if (incoming === originalRef.current) return
+    setEvent((prev) => {
+      if (JSON.stringify(prev) !== originalRef.current) return prev
+      originalRef.current = incoming
+      return { ...existingEvent }
+    })
   }, [existingEvent])
 
   const isDirty = JSON.stringify(event) !== originalRef.current
@@ -76,26 +84,23 @@ export function EventEditor({ inline }: EventEditorProps) {
     setEvent((prev) => ({ ...prev, [key]: value }))
   }, [])
 
+  // Close only after the write landed; a failed save keeps the form and its text.
   const handleSave = async () => {
     if (!event.summary.trim()) return
-    if (editingEventId) {
-      await updateEvent(event)
-    } else {
-      await addEvent(event)
-    }
-    closeEditor()
+    const ok = editingEventId ? await updateEvent(event) : await addEvent(event)
+    if (ok) closeEditor()
   }
 
   const handleDelete = async () => {
     if (!editingEventId) return
     if (settings.confirmBeforeDelete && !confirm(t.deleteEventConfirm)) return
-    await removeEvent(editingEventId)
-    closeEditor()
+    if (await removeEvent(editingEventId)) closeEditor()
   }
 
   const handleDuplicate = async () => {
     const dup = createDefaultEvent({
       ...event,
+      calendarId: duplicateCalendarId(event.calendarId),
       uid: generateUID(),
       recurrenceId: '',
       summary: `${event.summary} (copy)`,
@@ -103,8 +108,7 @@ export function EventEditor({ inline }: EventEditorProps) {
       lastModified: new Date().toISOString(),
       sequence: 0,
     })
-    await addEvent(dup)
-    closeEditor()
+    if (await addEvent(dup)) closeEditor()
   }
 
   // Dates and times are edited as wall-clock values in the event's own zone (not
@@ -122,6 +126,9 @@ export function EventEditor({ inline }: EventEditorProps) {
     return Math.round((Date.UTC(wb.year, wb.month - 1, wb.day) - Date.UTC(wa.year, wa.month - 1, wa.day)) / 86_400_000)
   }
 
+  // EXDATE/RDATE/UNTIL follow the series' new time of day (see reanchorRecurrence).
+  const reanchor = (prev: CalendarEvent, startDate: string, allDay: boolean) => reanchorRecurrence(prev, startDate, allDay, tz)
+
   /** Move the start, keeping the event's length. */
   const moveStart = (dateStr: string, timeStr: string) => {
     const newStart = combineWall(dateStr, event.allDay ? '00:00' : timeStr, tz)
@@ -130,7 +137,7 @@ export function EventEditor({ inline }: EventEditorProps) {
       const endDate = prev.allDay
         ? addDaysIn(newStart, Math.max(1, daysBetween(prev.startDate, prev.endDate)), tz)
         : new Date(new Date(newStart).getTime() + Math.max(0, new Date(prev.endDate).getTime() - new Date(prev.startDate).getTime())).toISOString()
-      return { ...prev, startDate: newStart, endDate }
+      return { ...prev, startDate: newStart, endDate, ...reanchor(prev, newStart, prev.allDay) }
     })
   }
 
@@ -154,11 +161,11 @@ export function EventEditor({ inline }: EventEditorProps) {
         // Cover every day the timed event touches; the end is exclusive.
         const lastInstant = new Date(Math.max(new Date(prev.startDate).getTime(), new Date(prev.endDate).getTime() - 1)).toISOString()
         const endDate = addDaysIn(startOfDayIn(lastInstant, tz), 1, tz)
-        return { ...prev, allDay, startDate, endDate }
+        return { ...prev, allDay, startDate, endDate, ...reanchor(prev, startDate, allDay) }
       }
       const startDate = combineWall(wallDateString(prev.startDate, tz), '09:00', tz) ?? prev.startDate
       const endDate = new Date(new Date(startDate).getTime() + settings.defaultDuration * 60_000).toISOString()
-      return { ...prev, allDay, startDate, endDate }
+      return { ...prev, allDay, startDate, endDate, ...reanchor(prev, startDate, allDay) }
     })
   }
 
@@ -172,6 +179,7 @@ export function EventEditor({ inline }: EventEditorProps) {
         startDate: move(prev.startDate),
         endDate: move(prev.endDate),
         recurrenceExceptions: prev.recurrenceExceptions.map(move),
+        recurrenceDates: prev.recurrenceDates?.map(move),
         recurrenceRule: prev.recurrenceRule?.until
           ? { ...prev.recurrenceRule, until: move(prev.recurrenceRule.until) }
           : prev.recurrenceRule,

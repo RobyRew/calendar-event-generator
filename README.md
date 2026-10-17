@@ -160,7 +160,7 @@ docker run -p 4321:4321 -v "$PWD/data:/app/data" \
   -e PUBLIC_SITE_URL=http://localhost:4321 calgen
 ```
 
-Multi-stage build: `node:22-alpine` builds, then a non-root `node:22-alpine` runtime serves on **4321**. On start it applies migrations (`scripts/migrate.mjs`) and runs `server.mjs`, which adds the shared security headers to every response. `GET /api/health` is the health check. Mount `/app/data`, or the database is lost with the container.
+Multi-stage build: `node:22-alpine` builds, then a non-root `node:22-alpine` runtime (uid 100, gid 101) serves on **4321**. On a Linux host, the mounted `data` directory must be writable by that uid (`sudo chown 100:101 data`). On start it applies migrations (`scripts/migrate.mjs`) and runs `server.mjs`, which adds the shared security headers to every response. `GET /api/health` is the health check. Mount `/app/data`, or the database is lost with the container.
 
 </details>
 
@@ -171,7 +171,7 @@ Multi-stage build: `node:22-alpine` builds, then a non-root `node:22-alpine` run
 
 - Domain `calendar.robyrew.com` → port **4321**
 - Environment: `LOGTO_ENDPOINT`, `LOGTO_APP_ID`, `LOGTO_APP_SECRET`, `PUBLIC_SITE_URL=https://calendar.robyrew.com`
-- Advanced → Volumes → bind mount `/opt/calendar-event-generator/data` → `/app/data`
+- Advanced → Volumes → bind mount `/opt/calendar-event-generator/data` → `/app/data`. The container runs as uid 100 / gid 101, so the host directory must be owned by them. The infrastructure repo's `dokploy_app_data_dirs` creates it that way; by hand: `sudo install -d -o 100 -g 101 -m 750 /opt/calendar-event-generator/data`
 - Memory limit 256 MB
 
 </details>

@@ -6,6 +6,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
 import { generateUID, eventKey, eventDisplayStart } from '@/lib/utils'
+import { duplicateCalendarId } from '@/stores/account-store'
 import { EventCard } from './EventCard'
 import { EventEditor } from './EventEditor'
 import { Button } from '@/components/ui/Button'
@@ -37,6 +38,7 @@ export function EventList() {
     const newUid = generateUID()
     const duplicate = {
       ...event,
+      calendarId: duplicateCalendarId(event.calendarId),
       uid: newUid,
       recurrenceId: '',
       sequence: 0,
@@ -44,8 +46,8 @@ export function EventList() {
       created: new Date().toISOString(),
       lastModified: new Date().toISOString(),
     }
-    await addEvent(duplicate)
-    openEditor(newUid)
+    // Account events are keyed calendar/uid, so open by eventKey, not the bare UID.
+    if (await addEvent(duplicate)) openEditor(eventKey(duplicate))
   }
 
   const handleCardClick = (key: string) => {

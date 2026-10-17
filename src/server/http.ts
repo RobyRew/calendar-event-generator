@@ -26,8 +26,39 @@ export async function readJson<T>(request: Request, schema: z.ZodType<T>, maxByt
   if (!/^application\/json\b/i.test(type)) throw new HttpError(415, 'json_required')
   const length = Number(request.headers.get('content-length') ?? '0')
   if (length > maxBytes) throw new HttpError(413, 'too_large')
-  const text = await request.text()
-  if (new TextEncoder().encode(text).length > maxBytes) throw new HttpError(413, 'too_large')
+  // Count bytes as they arrive. A chunked request has no content-length, and
+  // request.text() would buffer the whole stream before any size check.
+  const chunks: Uint8Array[] = []
+  let size = 0
+  const reader = request.body?.getReader()
+  if (reader) {
+    for (;;) {
+      let chunk: ReadableStreamReadResult<Uint8Array>
+      try {
+        chunk = await reader.read()
+      } catch (err) {
+        // The adapter's own cap (bodySizeLimit) errors the stream with a plain
+        // Error, which surfaced as a 500; it means the same as the check below.
+        if (err instanceof Error && /body size limit/i.test(err.message)) throw new HttpError(413, 'too_large')
+        throw err
+      }
+      const { done, value } = chunk
+      if (done) break
+      size += value.byteLength
+      if (size > maxBytes) {
+        await reader.cancel().catch(() => {})
+        throw new HttpError(413, 'too_large')
+      }
+      chunks.push(value)
+    }
+  }
+  const body = new Uint8Array(size)
+  let offset = 0
+  for (const c of chunks) {
+    body.set(c, offset)
+    offset += c.byteLength
+  }
+  const text = new TextDecoder().decode(body)
   let raw: unknown
   try {
     raw = JSON.parse(text)

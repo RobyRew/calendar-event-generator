@@ -1,4 +1,4 @@
-import type { CalendarEvent, EventAlarm, RecurrenceRule } from '@/types'
+import type { CalendarEvent, EventAlarm, EventAttendee, EventAttachment, RecurrenceRule, ByDay, WeekDay } from '@/types'
 import { createDefaultEvent } from './utils'
 import { toHexColor } from './colors'
 import {
@@ -7,6 +7,28 @@ import {
 } from './time'
 
 const ABSOLUTE_TRIGGER = /^\d{8}T\d{6}Z$/i
+
+// Enumerated values are written into ICS lines as they are, so only listed values
+// survive normalisation. An event-level editor could otherwise store
+// "TENTATIVE\r\nBEGIN:VEVENT…" through the API and add events to every feed.
+const STATUSES = ['TENTATIVE', 'CONFIRMED', 'CANCELLED'] as const
+const CLASSES = ['PUBLIC', 'PRIVATE', 'CONFIDENTIAL'] as const
+const TRANSPS = ['OPAQUE', 'TRANSPARENT'] as const
+const FREQS = ['SECONDLY', 'MINUTELY', 'HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const
+const WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const
+const ROLES = ['CHAIR', 'REQ-PARTICIPANT', 'OPT-PARTICIPANT', 'NON-PARTICIPANT'] as const
+const PARTSTATS = ['NEEDS-ACTION', 'ACCEPTED', 'DECLINED', 'TENTATIVE', 'DELEGATED'] as const
+const CUTYPES = ['INDIVIDUAL', 'GROUP', 'RESOURCE', 'ROOM', 'UNKNOWN'] as const
+const TRAVEL = ['AUTOMATIC', 'DISABLED', 'ENABLED'] as const
+const BYDAY = /^[+-]?\d{0,2}(SU|MO|TU|WE|TH|FR|SA)$/
+
+function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  const v = typeof value === 'string' ? value.trim().toUpperCase() : ''
+  return (allowed as readonly string[]).includes(v) ? (v as T) : fallback
+}
+
+const ints = (v: unknown): number[] | undefined =>
+  Array.isArray(v) ? v.filter((n): n is number => Number.isInteger(n)) : undefined
 
 /**
  * Bring any event — fresh from the editor, parsed from ICS, restored from JSON, or
@@ -35,9 +57,25 @@ export function normalizeEvent(input: Partial<CalendarEvent>): CalendarEvent {
   for (const key of ['categories', 'resources'] as const) {
     e[key] = Array.isArray(e[key]) ? e[key].filter((v): v is string => typeof v === 'string' && v.length > 0) : []
   }
-  e.attendees = Array.isArray(e.attendees) ? e.attendees.filter((a) => a && typeof a === 'object') : []
-  e.attachments = Array.isArray(e.attachments) ? e.attachments.filter((a) => a && typeof a.uri === 'string' && a.uri) : []
-  e.apple = e.apple && typeof e.apple === 'object' ? e.apple : {}
+  e.attendees = Array.isArray(e.attendees) ? e.attendees.filter((a) => a && typeof a === 'object').map(normalizeAttendee) : []
+  e.attachments = Array.isArray(e.attachments)
+    ? e.attachments.filter((a) => a && typeof a.uri === 'string' && a.uri).map(normalizeAttachment)
+    : []
+  e.status = oneOf(e.status, STATUSES, 'CONFIRMED')
+  e.classification = oneOf(e.classification, CLASSES, 'PUBLIC')
+  e.transparency = oneOf(e.transparency, TRANSPS, 'OPAQUE')
+  e.apple = e.apple && typeof e.apple === 'object' ? { ...e.apple } : {}
+  if (e.apple.travelAdvisory !== undefined) {
+    // Stored JSON can hold any type here; a non-string used to throw on toUpperCase.
+    const raw: unknown = e.apple.travelAdvisory
+    const t = oneOf(raw, TRAVEL, 'AUTOMATIC')
+    if (typeof raw === 'string' && t === raw.trim().toUpperCase()) e.apple.travelAdvisory = t
+    else delete e.apple.travelAdvisory
+  }
+  if (e.location && typeof e.location === 'object' && e.location.appleRadius !== undefined && !Number.isFinite(Number(e.location.appleRadius))) {
+    e.location = { ...e.location }
+    delete e.location.appleRadius
+  }
   e.google = e.google && typeof e.google === 'object' ? e.google : {}
   e.microsoft = e.microsoft && typeof e.microsoft === 'object' ? e.microsoft : {}
 
@@ -77,9 +115,44 @@ export function normalizeEvent(input: Partial<CalendarEvent>): CalendarEvent {
   return e
 }
 
+function normalizeAttendee(a: EventAttendee): EventAttendee {
+  return {
+    ...a,
+    name: typeof a.name === 'string' ? a.name : '',
+    email: typeof a.email === 'string' ? a.email : '',
+    role: oneOf(a.role, ROLES, 'REQ-PARTICIPANT'),
+    status: oneOf(a.status, PARTSTATS, 'NEEDS-ACTION'),
+    type: oneOf(a.type, CUTYPES, 'INDIVIDUAL'),
+    rsvp: !!a.rsvp,
+  }
+}
+
+function normalizeAttachment(a: EventAttachment): EventAttachment {
+  const out: EventAttachment = { ...a }
+  if (out.size !== undefined && !(Number.isInteger(out.size) && out.size >= 0)) delete out.size
+  return out
+}
+
 function normalizeRule(rule: RecurrenceRule | null | undefined): RecurrenceRule | null {
-  if (!rule || typeof rule !== 'object' || !rule.frequency) return null
-  const r: RecurrenceRule = { ...rule }
+  if (!rule || typeof rule !== 'object') return null
+  const freq = typeof rule.frequency === 'string' ? rule.frequency.trim().toUpperCase() : ''
+  if (!(FREQS as readonly string[]).includes(freq)) return null
+  const r: RecurrenceRule = { ...rule, frequency: freq as RecurrenceRule['frequency'] }
+  if (r.byDay !== undefined) {
+    r.byDay = Array.isArray(r.byDay) ? r.byDay.map((d) => String(d).trim().toUpperCase()).filter((d) => BYDAY.test(d)) as ByDay[] : undefined
+    if (!r.byDay?.length) delete r.byDay
+  }
+  if (r.weekStart !== undefined) {
+    const w = String(r.weekStart).trim().toUpperCase()
+    if ((WEEKDAYS as readonly string[]).includes(w)) r.weekStart = w as WeekDay
+    else delete r.weekStart
+  }
+  for (const key of ['byMonthDay', 'byMonth', 'bySetPos', 'byYearDay', 'byWeekNo', 'byHour', 'byMinute', 'bySecond'] as const) {
+    if (r[key] === undefined) continue
+    const v = ints(r[key])
+    if (v?.length) r[key] = v
+    else delete r[key]
+  }
   r.interval = Number.isFinite(r.interval) && r.interval >= 1 ? Math.floor(r.interval) : 1
   if (r.until && !isValidISO(r.until)) delete r.until
   if (r.count !== undefined && (!Number.isFinite(r.count) || r.count < 1)) delete r.count
@@ -90,6 +163,9 @@ function normalizeRule(rule: RecurrenceRule | null | undefined): RecurrenceRule 
 
 function normalizeAlarm(a: EventAlarm): EventAlarm | null {
   if (!a || typeof a !== 'object') return null
+  // ACTION:NONE (RFC 9074; Apple's "no alert") is a placeholder, not an alert.
+  // Coercing it to DISPLAY turned "no alert" into a real reminder on export.
+  if (String(a.action ?? '').trim().toUpperCase() === 'NONE') return null
   const alarm: EventAlarm = { ...a }
   alarm.action = (['DISPLAY', 'EMAIL', 'AUDIO'] as const).includes(alarm.action) ? alarm.action : 'DISPLAY'
   alarm.triggerRelation = alarm.triggerRelation === 'END' ? 'END' : 'START'
@@ -111,6 +187,7 @@ function normalizeAlarm(a: EventAlarm): EventAlarm | null {
     else alarm.duration = formatDuration(Math.abs(d))
   }
   alarm.description = typeof alarm.description === 'string' ? alarm.description : ''
+  if (alarm.repeat !== undefined && !(Number.isInteger(alarm.repeat) && alarm.repeat >= 0)) delete alarm.repeat
   alarm.isDefault = !!alarm.isDefault
   return alarm
 }

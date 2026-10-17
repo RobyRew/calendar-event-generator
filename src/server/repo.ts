@@ -10,6 +10,30 @@ import {
   type CalendarRow, type EventRow, type Permission, type ShareLinkRow,
 } from './db/schema'
 import { calendarRole, eventResourceId, type Role } from './authz'
+import { HttpError } from './http'
+
+// Feeds and share pages load and render a whole calendar per request, so its
+// size is bounded: by rows, and by stored JSON (characters), since a row count
+// alone let a calendar of 10,000 large events reach gigabytes. A single series
+// (master plus overrides) has its own smaller bounds, so someone invited to one
+// event cannot use up the owner's calendar by adding overrides of it.
+export const MAX_EVENTS_PER_CALENDAR = 10_000
+export const MAX_CALENDAR_CHARS = 16 * 1024 * 1024
+export const MAX_EVENT_CHARS = 64 * 1024
+export const MAX_OVERRIDES_PER_EVENT = 500
+export const MAX_SERIES_CHARS = 2 * 1024 * 1024
+
+/**
+ * Record a content change on a calendar. updated_at only ever moves forward, so
+ * it can serve as the feed's Last-Modified and render-cache key: the newest
+ * event row alone went backwards when that row was deleted.
+ */
+export function touchCalendar(db: DB, calendarId: string, now = Date.now()): void {
+  db.update(calendars)
+    .set({ updatedAt: sql`max(${calendars.updatedAt} + 1, ${now})` })
+    .where(eq(calendars.id, calendarId))
+    .run()
+}
 
 // ── Events ──────────────────────────────────────────────────────────────────
 
@@ -36,11 +60,70 @@ export function listEventsByUid(db: DB, calendarId: string, uid: string): Calend
   return db.select().from(events).where(and(eq(events.calendarId, calendarId), eq(events.uid, uid))).orderBy(asc(events.recurrenceId)).all().map(rowToEvent)
 }
 
-/** Insert or update by (calendar, UID, RECURRENCE-ID). SEQUENCE never goes backwards. */
-export function upsertEvent(db: DB, calendarId: string, input: Partial<CalendarEvent>, now = Date.now()): CalendarEvent {
+/** Rows and stored characters of a calendar (an index scan of events_calendar_size_idx). */
+function calendarUsage(db: DB, calendarId: string): { rows: number; chars: number } {
+  const r = db
+    .select({ rows: sql<number>`count(*)`, chars: sql<number>`coalesce(sum(${events.size}), 0)` })
+    .from(events)
+    .where(eq(events.calendarId, calendarId))
+    .get()
+  return { rows: r?.rows ?? 0, chars: r?.chars ?? 0 }
+}
+
+/** Overrides and stored characters of one series (master plus overrides). */
+function seriesUsage(db: DB, calendarId: string, uid: string): { overrides: number; chars: number } {
+  const r = db
+    .select({ overrides: sql<number>`coalesce(sum(${events.recurrenceId} <> ''), 0)`, chars: sql<number>`coalesce(sum(${events.size}), 0)` })
+    .from(events)
+    .where(and(eq(events.calendarId, calendarId), eq(events.uid, uid)))
+    .get()
+  return { overrides: r?.overrides ?? 0, chars: r?.chars ?? 0 }
+}
+
+/** Throw 413 unless adding `rows` rows and `chars` characters keeps the calendar and the series within bounds. */
+function checkRoom(db: DB, calendarId: string, uid: string, isOverride: boolean, rows: number, chars: number): void {
+  if (rows <= 0 && chars <= 0) return // shrinking an event is always allowed
+  const cal = calendarUsage(db, calendarId)
+  if (cal.rows + rows > MAX_EVENTS_PER_CALENDAR || cal.chars + chars > MAX_CALENDAR_CHARS) throw new HttpError(413, 'calendar_full')
+  const series = seriesUsage(db, calendarId, uid)
+  if (isOverride && rows > 0 && series.overrides + rows > MAX_OVERRIDES_PER_EVENT) throw new HttpError(413, 'too_many_overrides')
+  if (series.chars + chars > MAX_SERIES_CHARS) throw new HttpError(413, 'event_too_large')
+}
+
+/**
+ * Throw 413 if the calendar, or any series in it, is over its bounds. Bulk
+ * imports skip the per-row checks (a count per row made a 5,000-event import
+ * take seconds) and call this once, inside their transaction, afterwards.
+ */
+export function assertCalendarWithinBounds(db: DB, calendarId: string): void {
+  const cal = calendarUsage(db, calendarId)
+  if (cal.rows > MAX_EVENTS_PER_CALENDAR || cal.chars > MAX_CALENDAR_CHARS) throw new HttpError(413, 'calendar_full')
+  const over = db
+    .select({ uid: events.uid })
+    .from(events)
+    .where(eq(events.calendarId, calendarId))
+    .groupBy(events.uid)
+    .having(sql`sum(${events.recurrenceId} <> '') > ${MAX_OVERRIDES_PER_EVENT} or sum(${events.size}) > ${MAX_SERIES_CHARS}`)
+    .get()
+  if (over) throw new HttpError(413, 'event_too_large')
+}
+
+/**
+ * Insert or update by (calendar, UID, RECURRENCE-ID). SEQUENCE never goes
+ * backwards. `checkCapacity: false` skips the size bounds; the caller must then
+ * call assertCalendarWithinBounds before its transaction commits.
+ */
+export function upsertEvent(
+  db: DB,
+  calendarId: string,
+  input: Partial<CalendarEvent>,
+  now = Date.now(),
+  opts: { checkCapacity?: boolean; touch?: boolean } = {},
+): CalendarEvent {
+  const checkCapacity = opts.checkCapacity !== false
   const stored = toStoredEvent(input)
   const existing = db
-    .select()
+    .select({ id: events.id, sequence: events.sequence, size: events.size })
     .from(events)
     .where(and(eq(events.calendarId, calendarId), eq(events.uid, stored.uid), eq(events.recurrenceId, stored.recurrenceId)))
     .get()
@@ -48,9 +131,13 @@ export function upsertEvent(db: DB, calendarId: string, input: Partial<CalendarE
   if (existing) {
     const sequence = Math.max(stored.sequence, existing.sequence + 1)
     const next: CalendarEvent = { ...stored, sequence, lastModified: iso, dtstamp: iso }
+    const data = JSON.stringify(next)
+    if (data.length > MAX_EVENT_CHARS) throw new HttpError(413, 'event_too_large')
+    if (checkCapacity) checkRoom(db, calendarId, next.uid, !!next.recurrenceId, 0, data.length - existing.size)
     db.update(events)
       .set({
-        data: JSON.stringify(next),
+        data,
+        size: data.length,
         sequence,
         startsAt: Date.parse(next.startDate),
         endsAt: Date.parse(next.endDate),
@@ -58,16 +145,21 @@ export function upsertEvent(db: DB, calendarId: string, input: Partial<CalendarE
       })
       .where(eq(events.id, existing.id))
       .run()
+    if (opts.touch !== false) touchCalendar(db, calendarId, now)
     return { ...next, calendarId }
   }
   const next: CalendarEvent = { ...stored, created: stored.created || iso, lastModified: iso, dtstamp: iso }
+  const data = JSON.stringify(next)
+  if (data.length > MAX_EVENT_CHARS) throw new HttpError(413, 'event_too_large')
+  if (checkCapacity) checkRoom(db, calendarId, next.uid, !!next.recurrenceId, 1, data.length)
   db.insert(events)
     .values({
       id: randomUUID(),
       calendarId,
       uid: next.uid,
       recurrenceId: next.recurrenceId,
-      data: JSON.stringify(next),
+      data,
+      size: data.length,
       sequence: next.sequence,
       startsAt: Date.parse(next.startDate),
       endsAt: Date.parse(next.endDate),
@@ -75,6 +167,7 @@ export function upsertEvent(db: DB, calendarId: string, input: Partial<CalendarE
       updatedAt: now,
     })
     .run()
+  if (opts.touch !== false) touchCalendar(db, calendarId, now)
   return { ...next, calendarId }
 }
 
@@ -84,6 +177,7 @@ export function deleteEvent(db: DB, calendarId: string, uid: string, recurrenceI
     ? and(eq(events.calendarId, calendarId), eq(events.uid, uid), eq(events.recurrenceId, recurrenceId))
     : and(eq(events.calendarId, calendarId), eq(events.uid, uid))
   const res = db.delete(events).where(where).run()
+  if (res.changes) touchCalendar(db, calendarId)
   if (!recurrenceId) {
     db.delete(memberships).where(and(eq(memberships.resourceType, 'event'), eq(memberships.resourceId, eventResourceId(calendarId, uid)))).run()
     db.delete(shareLinks).where(and(eq(shareLinks.calendarId, calendarId), eq(shareLinks.eventUid, uid))).run()
@@ -157,7 +251,15 @@ export function createCalendar(db: DB, ownerId: string, input: { name: string; d
 
 export function updateCalendar(db: DB, id: string, patch: { name?: string; description?: string; color?: string; timezone?: string }): void {
   db.update(calendars)
-    .set({ ...patch, ...(patch.timezone ? { timezone: resolveZone(patch.timezone) } : {}), updatedAt: Date.now() })
+    // Any timezone present goes through resolveZone; '' used to be stored as-is.
+    // updated_at moves forward as in touchCalendar: a plain Date.now() could move
+    // it back after an import had pushed it ahead of the clock, and a later write
+    // could then land on a value the feed cache already held.
+    .set({
+      ...patch,
+      ...(patch.timezone !== undefined ? { timezone: resolveZone(patch.timezone) } : {}),
+      updatedAt: sql`max(${calendars.updatedAt} + 1, ${Date.now()})`,
+    })
     .where(eq(calendars.id, id))
     .run()
 }
@@ -308,6 +410,9 @@ export function listShareLinks(db: DB, calendarId: string, eventUid: string | nu
 
 export function updateShareLink(db: DB, id: string, patch: { label?: string; expiresAt?: number | null }): void {
   db.update(shareLinks).set(patch).where(eq(shareLinks.id, id)).run()
+  // The label is the feed's calendar name.
+  const link = getShareLink(db, id)
+  if (link) touchCalendar(db, link.calendarId)
 }
 
 export function revokeShareLink(db: DB, id: string): void {
@@ -318,6 +423,8 @@ export function revokeShareLink(db: DB, id: string): void {
 export function rotateShareLink(db: DB, id: string): string {
   const token = newToken()
   db.update(shareLinks).set({ token }).where(eq(shareLinks.id, id)).run()
+  const link = getShareLink(db, id)
+  if (link) touchCalendar(db, link.calendarId)
   return token
 }
 

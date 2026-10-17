@@ -11,6 +11,9 @@ export function useKeyboard() {
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       const mod = modKey === 'Meta' ? e.metaKey : e.ctrlKey
+      // In a text field, ⌘Z/⌘⇧Z undo typing; they must not also undo saved events.
+      const target = e.target as HTMLElement | null
+      const typing = !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
 
       if (mod && e.key === 'k') {
         e.preventDefault()
@@ -24,11 +27,11 @@ export function useKeyboard() {
         e.preventDefault()
         ui.setSearchOpen(true)
       }
-      if (mod && e.key === 'z' && !e.shiftKey) {
+      if (mod && !typing && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault()
         events.undo()
       }
-      if (mod && e.key === 'z' && e.shiftKey) {
+      if (mod && !typing && e.key.toLowerCase() === 'z' && e.shiftKey) {
         e.preventDefault()
         events.redo()
       }
@@ -40,7 +43,9 @@ export function useKeyboard() {
         if (ui.isCommandPaletteOpen) ui.setCommandPaletteOpen(false)
         else if (ui.isSearchOpen) ui.setSearchOpen(false)
         else if (ui.isSettingsOpen) ui.setSettingsOpen(false)
-        else if (ui.isEditorOpen) ui.closeEditor()
+        // Through the editor's own close, which asks before dropping unsaved
+        // changes; closing directly lost them.
+        else if (ui.isEditorOpen) window.dispatchEvent(new CustomEvent('calgen:request-close'))
       }
     }
 

@@ -22,16 +22,17 @@ interface EventState {
   load: () => Promise<void>
   /** Replace the account events with the server's current state. */
   loadCloud: () => Promise<void>
-  addEvent: (event: CalendarEvent) => Promise<void>
-  updateEvent: (event: CalendarEvent) => Promise<void>
-  deleteEvent: (key: string) => Promise<void>
-  deleteEvents: (keys: string[]) => Promise<void>
+  /** Resolves false when the write failed (the editor then stays open). */
+  addEvent: (event: CalendarEvent) => Promise<boolean>
+  updateEvent: (event: CalendarEvent) => Promise<boolean>
+  deleteEvent: (key: string) => Promise<boolean>
+  deleteEvents: (keys: string[]) => Promise<boolean>
   /** Import into this device. */
   importEvents: (events: CalendarEvent[]) => Promise<void>
   /** Clear this device's events (account calendars are untouched). */
   clearAll: () => Promise<void>
-  undo: () => Promise<void>
-  redo: () => Promise<void>
+  undo: () => Promise<boolean>
+  redo: () => Promise<boolean>
   canUndo: () => boolean
   canRedo: () => boolean
   clearSyncError: () => void
@@ -60,6 +61,16 @@ function restoreSnapshot(snapshot: CalendarEvent[], current: CalendarEvent[]): C
 
 const isCloud = (e: CalendarEvent) => !!e.calendarId
 
+/** Order-independent fingerprint of the account events in a list. */
+function cloudSignature(list: CalendarEvent[]): string {
+  return JSON.stringify(
+    list
+      .filter(isCloud)
+      .map((e) => [eventKey(e), e] as const)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  )
+}
+
 async function save(event: CalendarEvent): Promise<CalendarEvent> {
   if (event.calendarId) return normalizeEvent(await api.putEvent(event.calendarId, event))
   await storage.putEvent(event)
@@ -68,7 +79,7 @@ async function save(event: CalendarEvent): Promise<CalendarEvent> {
 
 async function remove(event: CalendarEvent): Promise<void> {
   if (event.calendarId) await api.deleteEvent(event.calendarId, event.uid, event.recurrenceId)
-  else await storage.deleteEvent(eventKey(event))
+  else await storage.deleteEvent(event)
 }
 
 /** Deleting an account event's master removes its overrides too (as the server does). */
@@ -76,6 +87,36 @@ function withoutDeleted(events: CalendarEvent[], deleted: CalendarEvent[]): Cale
   const keys = new Set(deleted.map(eventKey))
   const masters = new Set(deleted.filter((d) => d.calendarId && !d.recurrenceId).map((d) => `${d.calendarId}/${d.uid}`))
   return events.filter((e) => !keys.has(eventKey(e)) && !(e.calendarId && masters.has(`${e.calendarId}/${e.uid}`)))
+}
+
+/**
+ * A history snapshot with its account part replaced by the server's current
+ * account events. Undo and redo then restore only device events, and syncCloud
+ * finds no account difference to write, so a step recorded before another member
+ * or device changed the calendar cannot revert or delete their work.
+ */
+function rebase(snapshot: CalendarEvent[], cloud: CalendarEvent[]): CalendarEvent[] {
+  return [...snapshot.filter((e) => !isCloud(e)), ...cloud]
+}
+
+/** Same device events, by identity (snapshots share the event objects they keep). */
+function sameDevice(a: CalendarEvent[], b: CalendarEvent[]): boolean {
+  const da = a.filter((e) => !isCloud(e))
+  const db = new Set(b.filter((e) => !isCloud(e)))
+  return da.length === db.size && da.every((e) => db.has(e))
+}
+
+/** Drop rebased history steps that would no longer change anything. */
+function compact(history: CalendarEvent[][], current: CalendarEvent[]): CalendarEvent[][] {
+  const out: CalendarEvent[][] = []
+  let next = current
+  for (let i = history.length - 1; i >= 0; i--) {
+    const snap = history[i]!
+    if (sameDevice(snap, next)) continue
+    out.unshift(snap)
+    next = snap
+  }
+  return out
 }
 
 /** Persist the difference between two states of the account events (undo/redo). */
@@ -92,15 +133,56 @@ async function syncCloud(from: CalendarEvent[], to: CalendarEvent[]): Promise<Ca
 }
 
 export const useEventStore = create<EventState>((set, get) => {
-  /** Run a write; on failure keep the device intact and reload the account events. */
-  async function guarded(fn: () => Promise<void>): Promise<void> {
-    try {
-      await fn()
-    } catch (err) {
-      console.error('[events] save failed:', err)
-      set({ syncError: err instanceof Error ? err.message : 'error' })
-      await get().loadCloud().catch(() => {})
+  // Every action that reads the event list, awaits, and writes it back runs in
+  // this queue, one at a time. A focus refresh that landed while a save was in
+  // flight let the save push a snapshot taken before the refresh, and undoing it
+  // then deleted or reverted other members' events on the server.
+  let queue: Promise<unknown> = Promise.resolve()
+  function serial<T>(fn: () => Promise<T>): Promise<T> {
+    const run = queue.then(fn, fn)
+    queue = run.catch(() => {})
+    return run
+  }
+
+  /** Run a write; on failure keep the device intact, reload the account events and resolve false. */
+  function guarded(fn: () => Promise<void>): Promise<boolean> {
+    return serial(async () => {
+      try {
+        await fn()
+        return true
+      } catch (err) {
+        console.error('[events] save failed:', err)
+        set({ syncError: err instanceof Error ? err.message : 'error' })
+        // Already inside the queue, so the unqueued refresh (the queued one would wait on itself).
+        await refreshCloud().catch(() => {})
+        return false
+      }
+    })
+  }
+
+  async function refreshCloud(): Promise<void> {
+    const { status, calendars, shared } = useAccountStore.getState()
+    // A failed account check (offline, server restarting) says nothing about the
+    // account events on screen. Dropping them unmounted an open editor and lost
+    // its unsaved text, so they stay until the next check that succeeds.
+    if (status === 'unavailable' || status === 'loading') return
+    if (status !== 'signedIn') {
+      if (!get().events.some(isCloud)) return
+      const local = get().events.filter((e) => !isCloud(e))
+      set({ events: local, past: compact(get().past.map((p) => rebase(p, [])), local), future: compact(get().future.map((f) => rebase(f, [])), local) })
+      return
     }
+    const lists = await Promise.all(calendars.map((c) => api.events(c.id)))
+    const byKey = new Map<string, CalendarEvent>()
+    for (const e of [...lists.flat(), ...shared.flatMap((s) => s.events)]) byKey.set(eventKey(e), normalizeEvent(e))
+    const fresh = [...byKey.values()]
+    if (cloudSignature(get().events) === cloudSignature(fresh)) return
+    const events = [...get().events.filter((e) => !isCloud(e)), ...fresh]
+    set({
+      events,
+      past: compact(get().past.map((p) => rebase(p, fresh)), events),
+      future: compact(get().future.map((f) => rebase(f, fresh)), events),
+    })
   }
 
   return {
@@ -110,23 +192,18 @@ export const useEventStore = create<EventState>((set, get) => {
     future: [],
     syncError: null,
 
-    load: async () => {
-      const local = await storage.getAllEvents()
-      set({ events: [...local, ...get().events.filter(isCloud)], loaded: true })
-    },
+    load: () =>
+      serial(async () => {
+        const local = await storage.getAllEvents()
+        set({ events: [...local, ...get().events.filter(isCloud)], loaded: true })
+      }),
 
-    loadCloud: async () => {
-      const { status, calendars, shared } = useAccountStore.getState()
-      const local = get().events.filter((e) => !isCloud(e))
-      if (status !== 'signedIn') {
-        set({ events: local })
-        return
-      }
-      const lists = await Promise.all(calendars.map((c) => api.events(c.id)))
-      const byKey = new Map<string, CalendarEvent>()
-      for (const e of [...lists.flat(), ...shared.flatMap((s) => s.events)]) byKey.set(eventKey(e), normalizeEvent(e))
-      set({ events: [...get().events.filter((e) => !isCloud(e)), ...byKey.values()] })
-    },
+    // Undo history is only valid against the account state it was recorded on.
+    // When that state changes underneath it (another device or member, a
+    // sign-out), each snapshot's account part is replaced by the new state
+    // (rebase), so undo still restores device events but never replays old
+    // account versions.
+    loadCloud: () => serial(refreshCloud),
 
     addEvent: (input) =>
       guarded(async () => {
@@ -168,38 +245,43 @@ export const useEventStore = create<EventState>((set, get) => {
         const { events } = get()
         const keySet = new Set(keys)
         const doomed = events.filter((e) => keySet.has(eventKey(e)))
-        const local = doomed.filter((e) => !isCloud(e))
-        if (local.length) await storage.deleteEvents(local.map(eventKey))
+        // Server first: if it fails, nothing on the device has changed yet.
         for (const e of doomed.filter(isCloud)) await remove(e)
+        const local = doomed.filter((e) => !isCloud(e))
+        if (local.length) await storage.deleteEvents(local)
         set({ past: pushHistory(get().past, events), future: [], events: withoutDeleted(get().events, doomed) })
       }),
 
-    importEvents: async (input) => {
-      const { events } = get()
-      const incoming = input.map((e) => normalizeEvent({ ...e, calendarId: undefined }))
-      set({ past: pushHistory(get().past, events), future: [] })
-      await storage.putEvents(incoming)
-      const incomingByKey = new Map(incoming.map((e) => [eventKey(e), e]))
-      const existingKeys = new Set(events.map(eventKey))
-      const updatedEvents = events.map((e) => incomingByKey.get(eventKey(e)) ?? e)
-      const newEvents = incoming.filter((e) => !existingKeys.has(eventKey(e)))
-      set({ events: [...updatedEvents, ...newEvents] })
-    },
+    importEvents: (input) =>
+      serial(async () => {
+        const { events } = get()
+        const incoming = input.map((e) => normalizeEvent({ ...e, calendarId: undefined }))
+        set({ past: pushHistory(get().past, events), future: [] })
+        await storage.putEvents(incoming)
+        const incomingByKey = new Map(incoming.map((e) => [eventKey(e), e]))
+        const existingKeys = new Set(events.map(eventKey))
+        const updatedEvents = events.map((e) => incomingByKey.get(eventKey(e)) ?? e)
+        const newEvents = incoming.filter((e) => !existingKeys.has(eventKey(e)))
+        set({ events: [...updatedEvents, ...newEvents] })
+      }),
 
-    clearAll: async () => {
-      const { events } = get()
-      set({ past: pushHistory(get().past, events), future: [] })
-      await storage.clearAllEvents()
-      set({ events: events.filter(isCloud) })
-    },
+    clearAll: () =>
+      serial(async () => {
+        const { events } = get()
+        set({ past: pushHistory(get().past, events), future: [] })
+        await storage.clearAllEvents()
+        set({ events: events.filter(isCloud) })
+      }),
 
     undo: () =>
       guarded(async () => {
         const { past, events } = get()
         if (past.length === 0) return
         const previous = restoreSnapshot(past[past.length - 1]!, events)
-        await storage.replaceAllEvents(previous.filter((e) => !isCloud(e)))
+        // Server first, device second: a failed server write leaves IndexedDB and
+        // the screen as they were instead of half-applied.
         const cloud = await syncCloud(events, previous)
+        await storage.replaceAllEvents(previous.filter((e) => !isCloud(e)))
         set({
           past: past.slice(0, -1),
           future: [...get().future, events],
@@ -212,8 +294,8 @@ export const useEventStore = create<EventState>((set, get) => {
         const { future, events } = get()
         if (future.length === 0) return
         const next = restoreSnapshot(future[future.length - 1]!, events)
-        await storage.replaceAllEvents(next.filter((e) => !isCloud(e)))
         const cloud = await syncCloud(events, next)
+        await storage.replaceAllEvents(next.filter((e) => !isCloud(e)))
         set({
           future: future.slice(0, -1),
           past: [...get().past, events],

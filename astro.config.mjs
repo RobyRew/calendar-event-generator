@@ -34,12 +34,20 @@ export default defineConfig({
   site,
   base,
   output: target,
-  adapter: target === 'server' ? node({ mode: 'standalone' }) : undefined,
+  // bodySizeLimit: a little above the largest route cap (the 8 MiB import), so the
+  // route's own check answers 413 first. The default is 1 GiB, which let a single
+  // chunked request exhaust the container's memory.
+  adapter: target === 'server' ? node({ mode: 'standalone', bodySizeLimit: 9 * 1024 * 1024 }) : undefined,
 
   security: {
     // CSRF: reject cross-origin form posts. JSON API routes additionally require
     // a JSON content type, which a cross-site form cannot send.
     checkOrigin: true,
+    // Trust Host / X-Forwarded-Proto from Traefik for the public host only.
+    // Without it, every request URL is http://localhost:<build port>, and the
+    // origin check rejected same-origin DELETEs from browsers that send no
+    // Sec-Fetch-Site (Safari before 16.4).
+    allowedDomains: target === 'server' ? [{ protocol: 'https', hostname: new URL(site).hostname }] : [],
     // Astro hashes the inline scripts/styles it emits (the island loader is
     // inline) into a <meta> CSP on every page, recomputed on each build — no
     // hand-maintained hash list to go stale after an Astro upgrade. The server

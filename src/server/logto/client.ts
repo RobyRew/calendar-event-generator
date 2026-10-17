@@ -78,10 +78,26 @@ export interface LogtoAuthOptions<User> {
   adapter?: Partial<ClientAdapter>
 }
 
-/** Only same-site paths; blocks open redirects through ?returnTo=//evil.example. */
+/**
+ * Only same-site paths. The value is parsed as a URL and the normalised path is
+ * returned, so the browser receives exactly what was checked: a prefix check
+ * alone let "/\t/evil.example" through, which browsers resolve to
+ * //evil.example after stripping the tab.
+ */
 export function sanitizeReturnTo(raw: string | null | undefined): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return '/'
-  return raw
+  if (!raw || !raw.startsWith('/')) return '/'
+  const base = 'http://return-to.invalid'
+  try {
+    const u = new URL(raw, base)
+    if (u.origin !== base) return '/'
+    // Dot segments can normalise to a leading "//" ("/.//evil.example"), which a
+    // browser reads as another host; the URL serialiser has already turned
+    // backslashes into "/".
+    const out = `${u.pathname}${u.search}${u.hash}`
+    return out.startsWith('//') ? '/' : out
+  } catch {
+    return '/'
+  }
 }
 
 export function readCookie(header: string | null, name: string): string | null {

@@ -69,3 +69,14 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 export function writableCalendars(calendars: CloudCalendar[]): CloudCalendar[] {
   return calendars.filter((c) => c.role === 'owner' || c.role === 'editor')
 }
+
+/**
+ * Where a copy of an event goes: its own account calendar if the user may add
+ * events there, otherwise this device (a viewer, or someone invited to a single
+ * event, whose write to a new UID the server refuses). Shared by the list card
+ * and the editor so their Duplicate buttons do the same thing.
+ */
+export function duplicateCalendarId(calendarId: string | undefined): string | undefined {
+  if (!calendarId) return undefined
+  return writableCalendars(useAccountStore.getState().calendars).some((c) => c.id === calendarId) ? calendarId : undefined
+}

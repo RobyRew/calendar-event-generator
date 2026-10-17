@@ -31,11 +31,11 @@ class CalendarDB extends Dexie {
 
 export const db = new CalendarDB()
 
-/** Inverse of `eventKey()` in utils. */
-export function parseEventKey(key: string): EventPK {
-  const i = key.indexOf('::')
-  return i === -1 ? [key, ''] : [key.slice(0, i), key.slice(i + 2)]
-}
+/**
+ * Primary key of a stored row, built from the event itself. Keys are never parsed
+ * back out of eventKey() strings: a UID may itself contain the "::" separator.
+ */
+const pkOf = (e: Pick<CalendarEvent, 'uid' | 'recurrenceId'>): EventPK => [e.uid, e.recurrenceId || '']
 
 export async function getAllEvents(): Promise<CalendarEvent[]> {
   // Normalising on load repairs rows written by older versions (e.g. `-PT1D`
@@ -43,8 +43,8 @@ export async function getAllEvents(): Promise<CalendarEvent[]> {
   return (await db.localEvents.toArray()).map((e) => normalizeEvent(e))
 }
 
-export async function getEvent(key: string): Promise<CalendarEvent | undefined> {
-  return db.localEvents.get(parseEventKey(key))
+export async function getEvent(event: Pick<CalendarEvent, 'uid' | 'recurrenceId'>): Promise<CalendarEvent | undefined> {
+  return db.localEvents.get(pkOf(event))
 }
 
 export async function putEvent(event: CalendarEvent): Promise<void> {
@@ -55,12 +55,12 @@ export async function putEvents(events: CalendarEvent[]): Promise<void> {
   await db.localEvents.bulkPut(events.map((e) => ({ ...e, recurrenceId: e.recurrenceId || '' })))
 }
 
-export async function deleteEvent(key: string): Promise<void> {
-  await db.localEvents.delete(parseEventKey(key))
+export async function deleteEvent(event: Pick<CalendarEvent, 'uid' | 'recurrenceId'>): Promise<void> {
+  await db.localEvents.delete(pkOf(event))
 }
 
-export async function deleteEvents(keys: string[]): Promise<void> {
-  await db.localEvents.bulkDelete(keys.map(parseEventKey))
+export async function deleteEvents(events: Pick<CalendarEvent, 'uid' | 'recurrenceId'>[]): Promise<void> {
+  await db.localEvents.bulkDelete(events.map(pkOf))
 }
 
 export async function clearAllEvents(): Promise<void> {

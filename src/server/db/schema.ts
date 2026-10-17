@@ -54,6 +54,8 @@ export const events = sqliteTable(
     // Part of the identity: an override shares its master's UID (RFC 5545).
     recurrenceId: text('recurrence_id').notNull().default(''),
     data: text('data').notNull(), // JSON CalendarEvent (normalised)
+    // length(data), kept so per-calendar and per-series size budgets are an index scan.
+    size: integer('size').notNull().default(0),
     sequence: integer('sequence').notNull().default(0),
     startsAt: integer('starts_at').notNull(),
     endsAt: integer('ends_at').notNull(),
@@ -63,6 +65,7 @@ export const events = sqliteTable(
   (t) => [
     uniqueIndex('events_identity_idx').on(t.calendarId, t.uid, t.recurrenceId),
     index('events_calendar_start_idx').on(t.calendarId, t.startsAt),
+    index('events_calendar_size_idx').on(t.calendarId, t.size),
   ],
 )
 

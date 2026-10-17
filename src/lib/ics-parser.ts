@@ -10,6 +10,7 @@ import {
   parseDuration, parseICSDateValue, UTC_ZONE, type ParsedICSDate, type WallTime,
 } from './time'
 import { vtimezoneOffsetResolver } from './vtimezone'
+import { windowsZoneToIana } from './windows-zones'
 
 export interface ParseOptions {
   /** Zone for floating times and all-day dates. Defaults to the host zone. */
@@ -150,9 +151,13 @@ function stripMailto(v: string): string {
   return v.trim().replace(/^mailto:/i, '')
 }
 
+/** Re-serialise parsed parameters, RFC 6868-encoding values (^^, ^n, ^') as decodeParam undid them. */
 function serializeParams(params: Record<string, string>): string {
   return Object.entries(params)
-    .map(([k, v]) => `${k}=${/[;:,]/.test(v) ? `"${v.replace(/"/g, "^'")}"` : v}`)
+    .map(([k, v]) => {
+      const enc = v.replace(/\^/g, '^^').replace(/\r\n?|\n/g, '^n').replace(/"/g, "^'")
+      return `${k}=${/[;:,]/.test(enc) ? `"${enc}"` : enc}`
+    })
     .join(';')
 }
 
@@ -178,10 +183,16 @@ function readDate(value: string, params: Record<string, string>, ctx: ZoneContex
     if (isUTCZone(tzid)) zone = UTC_ZONE
     else if (isValidTimeZone(tzid)) zone = tzid
     else {
-      // Non-IANA TZID: evaluate the file's VTIMEZONE; the instant is exact, and the
-      // event is shown in the user's zone since its own zone has no IANA name.
-      const def = ctx.defs.get(tzid)
-      resolver = def ? vtimezoneOffsetResolver(def) ?? undefined : undefined
+      // Windows zone names (Outlook, Exchange) map to their IANA zone, so a series
+      // keeps repeating on the organiser's DST rules. Anything else non-IANA: the
+      // file's VTIMEZONE gives the exact instant, and the event takes the user's
+      // zone since its own has no IANA name.
+      const mapped = windowsZoneToIana(tzid)
+      if (mapped) zone = mapped
+      else {
+        const def = ctx.defs.get(tzid)
+        resolver = def ? vtimezoneOffsetResolver(def) ?? undefined : undefined
+      }
     }
   }
   const parsed = parseICSDateValue(value, { isDateParam, zone, offsetResolver: resolver })
@@ -189,6 +200,21 @@ function readDate(value: string, params: Record<string, string>, ctx: ZoneContex
   let eventZone = zone
   if (parsed.kind === 'utc') eventZone = ctx.calendarZone ?? ctx.defaultZone
   return { ...parsed, zone: eventZone }
+}
+
+/**
+ * A date property's literal value moved by `days` calendar days and read back
+ * with its own parameters, so the days follow that value's clock: UTC for a Z
+ * value, its TZID's rules, or the file's VTIMEZONE.
+ */
+function shiftDays(prop: Property, days: number, ctx: ZoneContext): string | null {
+  const m = /^(\d{4})(\d{2})(\d{2})(.*)$/.exec(prop.value.trim())
+  if (!m) return null
+  const d = new Date(Date.UTC(+m[1]!, +m[2]! - 1, +m[3]! + days))
+  if (Number.isNaN(d.getTime())) return null
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  const value = `${String(d.getUTCFullYear()).padStart(4, '0')}${p2(d.getUTCMonth() + 1)}${p2(d.getUTCDate())}${m[4]}`
+  return readDate(value, prop.params, ctx)?.iso ?? null
 }
 
 // ── Components → model ──────────────────────────────────────────────────────
@@ -313,8 +339,13 @@ function parseEvent(c: Component, ctx: ZoneContext): CalendarEvent | null {
   if (!start) return null
   event.startDate = start.iso
   event.allDay = start.isDate
-  event.timezone = start.zone
-  const zone = start.zone
+  // A UTC DTSTART with a recurrence repeats at a fixed UTC time. Giving it a DST
+  // zone (the calendar's or the user's) would re-anchor it to local wall time and
+  // move every occurrence after the next DST change, so such a series stays UTC.
+  // A one-off UTC event is shown in the calendar's/user's zone as before.
+  const recurs = c.props.some((p) => p.name === 'RRULE' || p.name === 'RDATE')
+  event.timezone = start.kind === 'utc' && recurs ? UTC_ZONE : start.zone
+  const zone = event.timezone
 
   const at = (p: Property) => readDate(p.value, p.params, { ...ctx, defaultZone: zone })
   const categories: string[] = []
@@ -323,6 +354,7 @@ function parseEvent(c: Component, ctx: ZoneContext): CalendarEvent | null {
   const attachments: EventAttachment[] = []
   let endIso: string | null = null
   let durationSeconds: number | null = null
+  let durationRaw = ''
 
   for (const prop of c.props) {
     const v = prop.value
@@ -332,7 +364,7 @@ function parseEvent(c: Component, ctx: ZoneContext): CalendarEvent | null {
       case 'DESCRIPTION': event.description = unescapeText(v); break
       case 'COMMENT': event.comment = unescapeText(v); break
       case 'DTEND': endIso = at(prop)?.iso ?? null; break
-      case 'DURATION': durationSeconds = parseDuration(v); break
+      case 'DURATION': durationSeconds = parseDuration(v); durationRaw = v.trim(); break
       case 'CREATED': event.created = at(prop)?.iso ?? ''; break
       case 'LAST-MODIFIED': event.lastModified = at(prop)?.iso ?? ''; break
       case 'DTSTAMP': event.dtstamp = at(prop)?.iso ?? ''; break
@@ -345,7 +377,14 @@ function parseEvent(c: Component, ctx: ZoneContext): CalendarEvent | null {
       case 'COLOR': event.color = toHexColor(v) ?? ''; break
       case 'CONTACT': event.contact = unescapeText(v); break
       case 'RELATED-TO': event.relatedTo = v.trim(); break
-      case 'RECURRENCE-ID': event.recurrenceId = at(prop)?.iso ?? ''; break
+      case 'RECURRENCE-ID': {
+        // A DATE value names a day of an all-day master, whose dates are read in
+        // the import zone (ctx). Reading it in the override's own DTSTART zone put
+        // it on the previous day for importers west of that zone.
+        const isDate = prop.params['VALUE']?.toUpperCase() === 'DATE' || /^\d{8}$/.test(v.trim())
+        event.recurrenceId = (isDate ? readDate(v, prop.params, ctx) : at(prop))?.iso ?? ''
+        break
+      }
       case 'CATEGORIES':
         categories.push(...splitUnescaped(v, ',').map((x) => unescapeText(x).trim()).filter(Boolean))
         break
@@ -428,9 +467,17 @@ function parseEvent(c: Component, ctx: ZoneContext): CalendarEvent | null {
   if (endIso) {
     event.endDate = endIso
   } else if (durationSeconds !== null) {
-    event.endDate = event.allDay && durationSeconds % 86400 === 0
-      ? addDaysIn(event.startDate, durationSeconds / 86400, zone)
-      : new Date(new Date(event.startDate).getTime() + durationSeconds * 1000).toISOString()
+    // Week and day parts are nominal (RFC 5545 §3.3.6): the same wall time N days
+    // later on DTSTART's own clock, so P1D across a DST change is 23 or 25 hours
+    // in a DST zone and exactly 24 in UTC. Only the time part is exact. Counting
+    // the days in the display zone made a UTC or VTIMEZONE-resolved event an
+    // hour longer or shorter depending on the importer's zone.
+    const m = /^([+-])?P(?:(\d+)W)?(?:(\d+)D)?/i.exec(durationRaw)
+    const sign = m?.[1] === '-' ? -1 : 1
+    const days = sign * (Number(m?.[2] ?? 0) * 7 + Number(m?.[3] ?? 0))
+    const rest = durationSeconds - days * 86400
+    const base = days ? (shiftDays(dtstartProp, days, ctx) ?? event.startDate) : event.startDate
+    event.endDate = new Date(new Date(base).getTime() + rest * 1000).toISOString()
   } else {
     event.endDate = event.allDay ? addDaysIn(event.startDate, 1, zone) : event.startDate
   }

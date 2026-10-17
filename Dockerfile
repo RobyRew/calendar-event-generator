@@ -31,7 +31,9 @@ ENV NODE_ENV=production \
     PORT=4321 \
     DB_URL=file:/app/data/calendar.db
 
-RUN addgroup -S app && adduser -S app -G app
+# Fixed ids: the bind-mounted /opt/calendar-event-generator/data on the host must
+# be owned by them (the infrastructure role creates it as 100:101).
+RUN addgroup -S -g 101 app && adduser -S -u 100 -G app app
 
 COPY --from=build --chown=app:app /app/dist ./dist
 COPY --from=build --chown=app:app /app/node_modules ./node_modules

@@ -7,14 +7,14 @@ import QRCode from 'qrcode'
 import Base from '@/layouts/Base.astro'
 import { getTranslations, t as tr } from '@/i18n'
 import type { Language } from '@/types'
-import { includeAtLevel, redactEvent } from '@/lib/redact'
 import { subscribeLinks } from '@/lib/subscribe-links'
+import { resolveZone } from '@/lib/time'
 import { currentUser, getAuth } from '@/server/auth'
 import { calendarRole, eventRole } from '@/server/authz'
 import { getDb } from '@/server/db/client'
 import { users } from '@/server/db/schema'
 import { publicOrigin } from '@/server/env'
-import { feedLevel, resolveShare, shareTitle } from '@/server/feed'
+import { feedLevel, resolveShareMeta, sharePreviewCached } from '@/server/feed'
 import { clientIp, take } from '@/server/ratelimit'
 
 function pickLanguage(header: string | null): Language {
@@ -35,12 +35,15 @@ Astro.response.headers.set('x-robots-tag', 'noindex, nofollow')
 
 const limited = !take(`share-page:${clientIp(Astro.request)}`, 60).ok
 const db = getDb()
-const target = limited ? null : resolveShare(db, token)
+const target = limited ? null : resolveShareMeta(db, token)
 if (!target) Astro.response.status = limited ? 429 : 404
 
 const level = target ? feedLevel(target.link) : null
 const isInvite = target?.link.permission === 'edit'
-const title = target ? shareTitle(target, t.busyLabel) : t.linkInvalid
+// Title and upcoming events, redacted to the link's level (an invite previews
+// nothing until joined); cached per link version, see sharePreviewCached.
+const shown = target ? sharePreviewCached(db, target, t.busyLabel) : null
+const title = shown ? shown.title : t.linkInvalid
 const owner = target ? db.select().from(users).where(eq(users.id, target.calendar.ownerId)).get() : undefined
 const ownerName = owner?.name || owner?.email || ''
 const links = target && level ? subscribeLinks(publicOrigin(), token, title) : null
@@ -50,17 +53,9 @@ const levelText = target
   ? { busy: [t.permBusy, t.permBusyDesc], limited: [t.permLimited, t.permLimitedDesc], full: [t.permFull, t.permFullDesc], edit: [t.permEdit, t.permEditDesc] }[target.link.permission]
   : null
 
-// Preview, redacted to the link's level (an invite previews nothing until joined).
-const now = Date.now()
-const preview = target && level
-  ? target.events
-      .filter((e) => includeAtLevel(e, level))
-      .map((e) => redactEvent(e, level, { busyLabel: t.busyLabel }))
-      .filter((e) => e.recurrenceRule || Date.parse(e.endDate) >= now)
-      .sort((a, b) => Date.parse(a.startDate) - Date.parse(b.startDate))
-      .slice(0, 12)
-  : []
-const tz = target?.calendar.timezone ?? 'UTC'
+const preview = shown?.events ?? []
+// resolveZone: a stored '' or unknown zone falls back to UTC instead of throwing in Intl.
+const tz = resolveZone(target?.calendar.timezone)
 const when = (iso: string, allDay: boolean) =>
   new Intl.DateTimeFormat(lang, allDay ? { dateStyle: 'medium', timeZone: tz } : { dateStyle: 'medium', timeStyle: 'short', timeZone: tz }).format(new Date(iso))
 

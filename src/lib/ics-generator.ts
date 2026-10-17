@@ -6,7 +6,7 @@ import {
   formatDuration, formatICSDate, formatICSUTC, formatICSWall, isUTCZone, isValidISO,
   isValidTimeZone, parseDuration,
 } from './time'
-import { ianaVTimezoneLines } from './vtimezone'
+import { vtimezoneLinesFor } from './vtimezone'
 
 // Pure module: no DOM, no storage, no host-timezone reads. The server builds its
 // subscription feeds with this exact code (import it directly, not via '@/lib').
@@ -170,7 +170,12 @@ function emitAlarm(emit: (l: string) => void, alarm: EventAlarm, event: Calendar
   emit('END:VALARM')
 }
 
-function emitEvent(emit: (l: string) => void, event: CalendarEvent, opts: Required<Pick<GeneratorOptions, 'includeAppleExtensions' | 'includeGoogleExtensions' | 'includeMicrosoftExtensions' | 'stripAlarms'>> & { now: string }) {
+function emitEvent(
+  emit: (l: string) => void,
+  event: CalendarEvent,
+  opts: Required<Pick<GeneratorOptions, 'includeAppleExtensions' | 'includeGoogleExtensions' | 'includeMicrosoftExtensions' | 'stripAlarms'>> & { now: string },
+  masterTime?: TimeContext,
+) {
   const ctx: TimeContext = { allDay: event.allDay, timezone: event.timezone }
   emit('BEGIN:VEVENT')
   emit(`UID:${plain(event.uid)}`)
@@ -178,7 +183,7 @@ function emitEvent(emit: (l: string) => void, event: CalendarEvent, opts: Requir
   emit(`DTSTAMP:${formatICSUTC(stamp)}`)
   emit(dateProperty('DTSTART', event.startDate, ctx))
   emit(dateProperty('DTEND', event.endDate, ctx))
-  if (event.recurrenceId && isValidISO(event.recurrenceId)) emit(dateProperty('RECURRENCE-ID', event.recurrenceId, ctx))
+  if (event.recurrenceId && isValidISO(event.recurrenceId)) emit(dateProperty('RECURRENCE-ID', event.recurrenceId, masterTime ?? ctx))
 
   emit(`SUMMARY:${escapeText(event.summary)}`)
   if (event.description) emit(`DESCRIPTION:${escapeText(event.description)}`)
@@ -232,9 +237,9 @@ function emitEvent(emit: (l: string) => void, event: CalendarEvent, opts: Requir
     if (!email) continue // an ATTENDEE value must be a calendar address
     const parts: string[] = []
     if (att.name?.trim()) parts.push(`CN=${paramValue(att.name.trim(), true)}`)
-    parts.push(`CUTYPE=${att.type || 'INDIVIDUAL'}`)
-    parts.push(`PARTSTAT=${att.status || 'NEEDS-ACTION'}`)
-    parts.push(`ROLE=${att.role || 'REQ-PARTICIPANT'}`)
+    parts.push(`CUTYPE=${paramValue(att.type || 'INDIVIDUAL')}`)
+    parts.push(`PARTSTAT=${paramValue(att.status || 'NEEDS-ACTION')}`)
+    parts.push(`ROLE=${paramValue(att.role || 'REQ-PARTICIPANT')}`)
     if (att.rsvp) parts.push('RSVP=TRUE')
     if (att.delegatedFrom) parts.push(`DELEGATED-FROM=${paramValue(withMailto(att.delegatedFrom), true)}`)
     if (att.delegatedTo) parts.push(`DELEGATED-TO=${paramValue(withMailto(att.delegatedTo), true)}`)
@@ -290,6 +295,32 @@ function emitEvent(emit: (l: string) => void, event: CalendarEvent, opts: Requir
   emit('END:VEVENT')
 }
 
+const WEEK = 7 * 86_400_000
+/** Most samples taken for one series; a longer span is sampled more sparsely. */
+const MAX_SERIES_SAMPLES = 3000
+
+/**
+ * Instants an event puts on the wall clock of its zone: its own dates plus, for a
+ * series, one sample a week from its start until its UNTIL or the end of the
+ * fifth year after the current one, so a VTIMEZONE check covers the transitions
+ * its occurrences cross (a monthly sample missed Gaza's short DST periods). The
+ * end used to be start + 5 years, so the block of a series that began years ago
+ * stopped short of its current occurrences. The window moves with the UTC year
+ * only, so a feed body stays the same between edits within a year.
+ */
+function zoneSampleInstants(e: CalendarEvent, horizon: number): number[] {
+  const out = [e.startDate, e.endDate, e.recurrenceId, ...e.recurrenceExceptions, ...(e.recurrenceDates ?? [])]
+    .filter((x): x is string => !!x && isValidISO(x))
+    .map((x) => Date.parse(x))
+  if (e.recurrenceRule) {
+    const start = Date.parse(e.startDate)
+    const end = e.recurrenceRule.until && isValidISO(e.recurrenceRule.until) ? Math.min(Date.parse(e.recurrenceRule.until), horizon) : horizon
+    const step = Math.max(WEEK, Math.ceil((end - start) / MAX_SERIES_SAMPLES))
+    for (let t = start + step; t <= end; t += step) out.push(t)
+  }
+  return out
+}
+
 function withMailto(addr: string): string {
   return /^mailto:/i.test(addr) ? addr : `mailto:${addr}`
 }
@@ -315,12 +346,39 @@ export function generateICS(input: CalendarEvent[], options: GeneratorOptions = 
   const level: RedactLevel = options.redactLevel ?? (stripPersonalData ? 'no-personal' : 'full')
   const now = options.now && isValidISO(options.now) ? options.now : new Date().toISOString()
 
+  // At busy level, cancelled and free events are left out. For a recurring event
+  // that must happen as a group: a left-out override (how one occurrence is
+  // cancelled, freed or moved) becomes an EXDATE on its master, otherwise the
+  // master expands that slot again; a left-out cancelled master takes its
+  // overrides along.
+  const droppedOverrides = new Map<string, string[]>()
+  const droppedMasters = new Set<string>()
+  for (const e of input) {
+    if (includeAtLevel(e, level)) continue
+    if (e.recurrenceId) droppedOverrides.set(e.uid, [...(droppedOverrides.get(e.uid) ?? []), e.recurrenceId])
+    // Only a cancelled series cancels its overrides. A free (TRANSPARENT) series
+    // can still have occurrences marked busy, and those stay in the feed.
+    else if (e.status === 'CANCELLED') droppedMasters.add(e.uid)
+  }
   const events = input
-    .filter((e) => includeAtLevel(e, level))
-    .map((e) => redactEvent(e, level, { busyLabel }))
+    .filter((e) => includeAtLevel(e, level) && !(e.recurrenceId && droppedMasters.has(e.uid)))
+    .map((e) => {
+      const r = redactEvent(e, level, { busyLabel })
+      const extra = !e.recurrenceId ? droppedOverrides.get(e.uid) : undefined
+      return extra ? { ...r, recurrenceExceptions: [...r.recurrenceExceptions, ...extra] } : r
+    })
+
+  // RECURRENCE-ID takes the value type of its master's DTSTART (RFC 5545
+  // §3.8.4.4), not the override's own: an occurrence changed to all-day still
+  // names a DATE-TIME occurrence of a timed series.
+  const masterTime = new Map<string, TimeContext>()
+  for (const e of events) if (!e.recurrenceId) masterTime.set(e.uid, { allDay: e.allDay, timezone: e.timezone })
 
   const lines: string[] = []
-  const emit = (line: string) => lines.push(foldLine(line))
+  // No value the generator writes legitimately contains CR or LF (TEXT is escaped,
+  // parameters are RFC 6868-encoded), so any that reach this point were injected.
+  // Dropping them here keeps every property one line in feeds and exports.
+  const emit = (line: string) => lines.push(foldLine(line.replace(/[\r\n]+/g, '')))
 
   emit('BEGIN:VCALENDAR')
   emit('VERSION:2.0')
@@ -354,17 +412,23 @@ export function generateICS(input: CalendarEvent[], options: GeneratorOptions = 
 
   // One VTIMEZONE per zone actually used by a timed event (all-day events and UTC
   // events carry no TZID, so they need none).
-  const zones = new Set<string>()
+  // Each block is checked against the runtime tz data at the instants this export
+  // writes in that zone (see vtimezoneLinesFor).
+  const horizon = Date.UTC(new Date().getUTCFullYear() + 6, 0, 1)
+  const zoneInstants = new Map<string, number[]>()
   for (const e of events) {
-    if (!e.allDay && !isUTCZone(e.timezone) && isValidTimeZone(e.timezone)) zones.add(e.timezone)
+    if (e.allDay || isUTCZone(e.timezone) || !isValidTimeZone(e.timezone)) continue
+    const list = zoneInstants.get(e.timezone) ?? []
+    for (const t of zoneSampleInstants(e, horizon)) list.push(t)
+    zoneInstants.set(e.timezone, list)
   }
-  for (const tz of zones) {
-    const block = ianaVTimezoneLines(tz)
+  for (const [tz, instants] of zoneInstants) {
+    const block = vtimezoneLinesFor(tz, instants)
     if (block) for (const line of block) emit(line)
   }
 
   for (const event of events) {
-    emitEvent(emit, event, { includeAppleExtensions, includeGoogleExtensions, includeMicrosoftExtensions, stripAlarms, now })
+    emitEvent(emit, event, { includeAppleExtensions, includeGoogleExtensions, includeMicrosoftExtensions, stripAlarms, now }, masterTime.get(event.uid))
   }
 
   emit('END:VCALENDAR')

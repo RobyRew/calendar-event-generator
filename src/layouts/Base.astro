@@ -40,7 +40,9 @@ const umamiDomains = import.meta.env.PUBLIC_UMAMI_DOMAINS
       // Analytics only when configured at build time; data-domains keeps forks and
       // previews from reporting into the dashboard. External file, so the CSP needs
       // only the stats origin, not 'unsafe-inline'.
-      umamiSrc && umamiId && (
+      // Never on private pages: the tracker reports the URL and title, and a share
+      // page's URL is its bearer token.
+      umamiSrc && umamiId && !isPrivate && (
         <script is:inline defer src={umamiSrc} data-website-id={umamiId} data-domains={umamiDomains} data-do-not-track="true"></script>
       )
     }

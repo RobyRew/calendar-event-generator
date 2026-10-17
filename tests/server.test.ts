@@ -292,3 +292,188 @@ describe('CSP for server-rendered pages', async () => {
     expect(merged).toContain("script-src 'self' 'sha256-x'")
   })
 })
+
+describe('pre-push review regressions', async () => {
+  const { readJson } = await import('@/server/http')
+  const { eventInput } = await import('@/server/schemas')
+  const { sanitizeReturnTo } = await import('@/server/logto/client')
+  const { getCalendar, MAX_EVENTS_PER_CALENDAR, updateShareLink } = await import('@/server/repo')
+  const { events: eventsTable } = await import('@/server/db/schema')
+  const path = () => `/api/calendars/${calendarId}/events`
+  const base = { uid: 'x1', summary: 'X', startDate: '2026-10-21T07:00:00.000Z', endDate: '2026-10-21T08:00:00.000Z' }
+
+  it('rejects enum fields carrying line breaks or unknown values', async () => {
+    const put = (body: unknown) => call(eventsRoute.PUT, { user: 'alice', path: path(), params: { id: calendarId }, method: 'PUT', body })
+    expect((await put({ ...base, status: 'TENTATIVE\r\nBEGIN:VEVENT' })).status).toBe(400)
+    expect((await put({ ...base, recurrenceRule: { frequency: 'DAILY\r\nX:1', interval: 1 } })).status).toBe(400)
+    expect((await put({ ...base, recurrenceRule: { frequency: 'WEEKLY', interval: 1, byDay: ['MO\nX'] } })).status).toBe(400)
+    expect((await put({ ...base, status: 'TENTATIVE', recurrenceRule: { frequency: 'WEEKLY', interval: 1, byDay: ['MO', '-1FR'] } })).status).toBe(200)
+  })
+
+  it('stops reading a chunked body once it passes the cap', async () => {
+    let pulled = 0
+    const chunk = new Uint8Array(64 * 1024).fill(32)
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += chunk.byteLength
+        if (pulled > 50 * 1024 * 1024) controller.close()
+        else controller.enqueue(chunk)
+      },
+    })
+    const request = new Request('https://calendar.test/api/x', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: stream, duplex: 'half' } as RequestInit)
+    await expect(readJson(request, eventInput, 256 * 1024)).rejects.toMatchObject({ status: 413 })
+    expect(pulled).toBeLessThan(2 * 1024 * 1024)
+  })
+
+  it('keeps returnTo on this site after URL normalisation', () => {
+    expect(sanitizeReturnTo('/\t/evil.example/login')).toBe('/')
+    expect(sanitizeReturnTo('/\n/evil.example')).toBe('/')
+    expect(sanitizeReturnTo('/\\evil.example')).toBe('/')
+    expect(sanitizeReturnTo('/s/abc?x=1#h')).toBe('/s/abc?x=1#h')
+  })
+
+  it('caps the number of events in a calendar', async () => {
+    const now = Date.now()
+    const filler = Array.from({ length: MAX_EVENTS_PER_CALENDAR - 3 }, (_, i) => ({
+      id: `f${i}`, calendarId, uid: `f${i}`, recurrenceId: '', data: '{}', sequence: 0, startsAt: now, endsAt: now, createdAt: now, updatedAt: now,
+    }))
+    for (let i = 0; i < filler.length; i += 500) db.insert(eventsTable).values(filler.slice(i, i + 500)).run()
+    const put = (uid: string) => call(eventsRoute.PUT, { user: 'alice', path: path(), params: { id: calendarId }, method: 'PUT', body: { ...base, uid } })
+    expect((await put('last-ok')).status).toBe(200)
+    const full = await put('one-too-many')
+    expect(full.status).toBe(413)
+    expect(full.json.error).toBe('calendar_full')
+    expect((await put('doctor')).status).toBe(200) // updating an existing event still works
+  })
+
+  it('stores an empty timezone patch as UTC', async () => {
+    await call(calendarRoute.PATCH, { user: 'alice', path: `/api/calendars/${calendarId}`, params: { id: calendarId }, method: 'PATCH', body: { timezone: '' } })
+    expect(getCalendar(db, calendarId)!.timezone).toBe('UTC')
+  })
+
+  it('revalidates feeds by ETag only, and deletions change both ETag and Last-Modified', async () => {
+    const token = createShareLink(db, { calendarId, eventUid: null, permission: 'full', createdBy: 'alice' }).token
+    const first = await feed(token)
+    const etag = first.headers.get('etag')!
+    const lastModified = first.headers.get('last-modified')!
+    expect((await feed(token, { 'if-modified-since': lastModified })).status).toBe(200)
+    expect((await feed(token, { 'if-none-match': etag })).status).toBe(304)
+    await new Promise((r) => setTimeout(r, 1100))
+    await call(eventsRoute.DELETE, { user: 'alice', path: `${path()}?uid=lunch`, params: { id: calendarId }, method: 'DELETE' })
+    const after = await feed(token, { 'if-none-match': etag })
+    expect(after.status).toBe(200)
+    expect(after.text).not.toContain('Lunch')
+    expect(Date.parse(after.headers.get('last-modified')!)).toBeGreaterThan(Date.parse(lastModified))
+  })
+
+  it('serves a renamed link under its new name right away (render cache keyed on the change)', async () => {
+    const link = createShareLink(db, { calendarId, eventUid: null, permission: 'limited', createdBy: 'alice' })
+    expect((await feed(link.token)).text).toContain('X-WR-CALNAME:Clinic')
+    updateShareLink(db, link.id, { label: 'Grandparents' })
+    expect((await feed(link.token)).text).toContain('X-WR-CALNAME:Grandparents')
+  })
+})
+
+describe('second review regressions', async () => {
+  const importRoute = await import('../src/server-routes/api/calendars/import')
+  const { readJson } = await import('@/server/http')
+  const { eventInput } = await import('@/server/schemas')
+  const { sanitizeReturnTo } = await import('@/server/logto/client')
+  const { feedCacheStats, resolveShareMeta, sharePreviewCached } = await import('@/server/feed')
+  const repo = await import('@/server/repo')
+  const { calendars: calendarsTable, events: eventsTable } = await import('@/server/db/schema')
+  const path = () => `/api/calendars/${calendarId}/events`
+  const ev = (uid: string, extra: Record<string, unknown> = {}) => ({ uid, summary: uid, startDate: '2026-11-02T07:00:00.000Z', endDate: '2026-11-02T08:00:00.000Z', ...extra })
+  const importBody = (events: unknown[]) => call(importRoute.POST, { user: 'alice', path: `/api/calendars/${calendarId}/import`, params: { id: calendarId }, method: 'POST', body: { events } })
+
+  it('keeps one cached feed per link, however often the calendar changes', async () => {
+    const before = feedCacheStats().slots
+    const token = createShareLink(db, { calendarId, eventUid: null, permission: 'full', createdBy: 'alice' }).token
+    for (let i = 0; i < 5; i++) {
+      await call(eventsRoute.PUT, { user: 'alice', path: path(), params: { id: calendarId }, method: 'PUT', body: ev(`e${i}`) })
+      expect((await feed(token)).text).toContain(`UID:e${i}`)
+    }
+    expect(feedCacheStats().slots - before).toBe(1)
+  })
+
+  it('maps the adapter\'s body-limit stream error to 413', async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.error(new Error('Body size limit exceeded: received more than 9437184 bytes'))
+      },
+    })
+    const request = new Request('https://calendar.test/api/x', { method: 'POST', headers: { 'content-type': 'application/json' }, body: stream, duplex: 'half' } as RequestInit)
+    await expect(readJson(request, eventInput, 8 * 1024 * 1024)).rejects.toMatchObject({ status: 413 })
+  })
+
+  it('a calendar rename after an import never moves updated_at backwards', async () => {
+    const res = await importBody(Array.from({ length: 300 }, (_, i) => ev(`imp${i}`)))
+    expect(res.status).toBe(200)
+    const after = repo.getCalendar(db, calendarId)!.updatedAt
+    repo.updateCalendar(db, calendarId, { name: 'Renamed' })
+    expect(repo.getCalendar(db, calendarId)!.updatedAt).toBeGreaterThan(after)
+    // One touch per import, not one per row, so it is not 300 ms ahead of the clock.
+    expect(after - Date.now()).toBeLessThan(50)
+  })
+
+  it('checks an import against the calendar bounds once and rolls it back when over', async () => {
+    const now = Date.now()
+    const filler = Array.from({ length: repo.MAX_EVENTS_PER_CALENDAR - 10 }, (_, i) => ({
+      id: `g${i}`, calendarId, uid: `g${i}`, recurrenceId: '', data: '{}', size: 2, sequence: 0, startsAt: now, endsAt: now, createdAt: now, updatedAt: now,
+    }))
+    for (let i = 0; i < filler.length; i += 500) db.insert(eventsTable).values(filler.slice(i, i + 500)).run()
+    const count = () => db.select().from(eventsTable).where(eq(eventsTable.calendarId, calendarId)).all().length
+    const start = count()
+    const res = await importBody(Array.from({ length: 50 }, (_, i) => ev(`over${i}`)))
+    expect(res.status).toBe(413)
+    expect(count()).toBe(start)
+    expect((await importBody(Array.from({ length: 5 }, (_, i) => ev(`fits${i}`)))).status).toBe(200)
+  })
+
+  it('bounds the stored size of an event and of a calendar', async () => {
+    const put = (body: unknown) => call(eventsRoute.PUT, { user: 'alice', path: path(), params: { id: calendarId }, method: 'PUT', body })
+    const big = await put(ev('big', { comment: 'x'.repeat(200_000) }))
+    expect(big.status).toBe(413)
+    expect(big.json.error).toBe('event_too_large')
+    const row = db.select().from(calendarsTable).where(eq(calendarsTable.id, calendarId)).get()!
+    expect(row).toBeTruthy()
+    // 300 events of ~60 KB pass the row cap but not the 16 MiB budget.
+    let last = 200
+    for (let i = 0; i < 300 && last === 200; i++) last = (await put(ev(`fat${i}`, { comment: 'y'.repeat(60_000) }))).status
+    expect(last).toBe(413)
+    const used = db.select().from(eventsTable).where(eq(eventsTable.calendarId, calendarId)).all().reduce((n, r) => n + r.size, 0)
+    expect(used).toBeLessThanOrEqual(repo.MAX_CALENDAR_CHARS)
+  })
+
+  it('someone invited to one event cannot fill the calendar with overrides of it', async () => {
+    const invite = createShareLink(db, { calendarId, eventUid: 'lunch', permission: 'edit', createdBy: 'alice' })
+    await call(acceptRoute.POST, { user: 'dana', path: `/api/share/${invite.token}/accept`, params: { token: invite.token }, method: 'POST', body: {} })
+    let status = 200
+    let n = 0
+    for (; n < repo.MAX_OVERRIDES_PER_EVENT + 5 && status === 200; n++) {
+      const rid = new Date(Date.UTC(2027, 0, 1) + n * 86_400_000).toISOString()
+      status = (await call(eventsRoute.PUT, { user: 'dana', path: path(), params: { id: calendarId }, method: 'PUT', body: ev('lunch', { recurrenceId: rid, startDate: rid, endDate: rid }) })).status
+    }
+    expect(status).toBe(413)
+    expect(n).toBeLessThanOrEqual(repo.MAX_OVERRIDES_PER_EVENT + 1)
+    expect((await call(eventsRoute.PUT, { user: 'alice', path: path(), params: { id: calendarId }, method: 'PUT', body: ev('owner-still-adds') })).status).toBe(200)
+  })
+
+  it('never returns a scheme-relative returnTo', () => {
+    for (const raw of ['/.//evil.example', '/a/..//evil.example', '/%2E/\\evil.example', '/%2e%2E//evil.example/x']) {
+      expect(sanitizeReturnTo(raw)).toBe('/')
+    }
+  })
+
+  it('serves the share-page preview from cache until the link changes', () => {
+    const link = createShareLink(db, { calendarId, eventUid: null, permission: 'limited', createdBy: 'alice' })
+    const meta = () => resolveShareMeta(db, link.token)!
+    const first = sharePreviewCached(db, meta())
+    expect(first.events.length).toBeGreaterThan(0)
+    // A row removed behind the repo's back does not change the version: the cache answers.
+    db.delete(eventsTable).where(eq(eventsTable.calendarId, calendarId)).run()
+    expect(sharePreviewCached(db, meta())).toBe(first)
+    repo.touchCalendar(db, calendarId)
+    expect(sharePreviewCached(db, meta()).events).toEqual([])
+  })
+})

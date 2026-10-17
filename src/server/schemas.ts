@@ -11,9 +11,35 @@ export const calendarInput = z.object({
 
 export const calendarPatch = calendarInput.partial()
 
-// The event shape is validated loosely here and then normalised and filtered to
-// known fields by toStoredEvent() (src/server/repo.ts) before it is stored.
+const weekday = z.enum(['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'])
+const intList = z.array(z.number().int()).max(400)
+
+const recurrenceRule = z.looseObject({
+  frequency: z.enum(['SECONDLY', 'MINUTELY', 'HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']),
+  interval: z.number().int().min(1).max(10_000).optional(),
+  count: z.number().int().min(1).max(100_000).optional(),
+  until: z.iso.datetime({ offset: true }).optional(),
+  byDay: z.array(z.string().regex(/^[+-]?\d{0,2}(SU|MO|TU|WE|TH|FR|SA)$/)).max(60).optional(),
+  byMonthDay: intList.optional(),
+  byMonth: intList.optional(),
+  bySetPos: intList.optional(),
+  byYearDay: intList.optional(),
+  byWeekNo: intList.optional(),
+  byHour: intList.optional(),
+  byMinute: intList.optional(),
+  bySecond: intList.optional(),
+  weekStart: weekday.optional(),
+})
+
+// The rest of the event shape is validated loosely here and then normalised and
+// filtered to known fields by toStoredEvent() (src/server/repo.ts) before it is
+// stored. Enumerated fields are checked here and again in normalizeEvent, since
+// they are written into ICS lines as they are.
 export const eventInput = z.looseObject({
+  status: z.enum(['TENTATIVE', 'CONFIRMED', 'CANCELLED']).optional(),
+  classification: z.enum(['PUBLIC', 'PRIVATE', 'CONFIDENTIAL']).optional(),
+  transparency: z.enum(['OPAQUE', 'TRANSPARENT']).optional(),
+  recurrenceRule: recurrenceRule.nullable().optional(),
   uid: z.string().min(1).max(255).regex(/^[^\r\n]+$/),
   recurrenceId: z.string().max(64).optional(),
   summary: z.string().max(2000).optional(),
