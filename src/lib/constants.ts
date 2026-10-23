@@ -6,6 +6,8 @@ export const PROD_ID = '-//CalGen//Calendar Event Generator 2.0//EN'
 
 export const STORAGE_KEYS = {
   settings: 'calgen_settings',
+  /** Preferences sync state: which user, and the version and local revision per section. */
+  prefsSync: 'calgen_prefs_sync',
   language: 'calgen_language',
   theme: 'calgen_theme',
 } as const

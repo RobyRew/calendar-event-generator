@@ -468,12 +468,14 @@ describe('second review regressions', async () => {
   it('serves the share-page preview from cache until the link changes', () => {
     const link = createShareLink(db, { calendarId, eventUid: null, permission: 'limited', createdBy: 'alice' })
     const meta = () => resolveShareMeta(db, link.token)!
-    const first = sharePreviewCached(db, meta())
+    // A fixed clock before the fixture's events (20 October 2026), so they count as upcoming.
+    const now = Date.parse('2026-10-01T00:00:00.000Z')
+    const first = sharePreviewCached(db, meta(), 'Busy', now)
     expect(first.events.length).toBeGreaterThan(0)
     // A row removed behind the repo's back does not change the version: the cache answers.
     db.delete(eventsTable).where(eq(eventsTable.calendarId, calendarId)).run()
-    expect(sharePreviewCached(db, meta())).toBe(first)
+    expect(sharePreviewCached(db, meta(), 'Busy', now)).toBe(first)
     repo.touchCalendar(db, calendarId)
-    expect(sharePreviewCached(db, meta()).events).toEqual([])
+    expect(sharePreviewCached(db, meta(), 'Busy', now).events).toEqual([])
   })
 })

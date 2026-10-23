@@ -14,6 +14,12 @@ export interface SqliteStoreOptions {
   table?: string
   /** Column names, for apps whose schema predates this package. */
   columns?: { id?: string; data?: string; createdAt?: string; expiresAt?: string }
+  /**
+   * Column that receives the ID token's subject (`sub`) on every save ('' before
+   * sign-in), so all sessions of one user can be found through an index, e.g. to
+   * end them when the account is deleted. Off when not set.
+   */
+  subjectColumn?: string
   /** Create the table if missing (otherwise the app's migrations own it). */
   createTable?: boolean
 }
@@ -29,7 +35,8 @@ export function sqliteSessionStore(db: SqliteLike, options: SqliteStoreOptions =
     createdAt: options.columns?.createdAt ?? 'created_at',
     expiresAt: options.columns?.expiresAt ?? 'expires_at',
   }
-  for (const name of [table, ...Object.values(c)]) {
+  const subject = options.subjectColumn
+  for (const name of [table, ...Object.values(c), ...(subject ? [subject] : [])]) {
     // Identifiers cannot be bound as parameters, so they are validated instead.
     if (!IDENT.test(name)) throw new Error(`sqliteSessionStore: invalid identifier "${name}"`)
   }
@@ -37,10 +44,15 @@ export function sqliteSessionStore(db: SqliteLike, options: SqliteStoreOptions =
     db.exec(`CREATE TABLE IF NOT EXISTS ${table} (${c.id} TEXT PRIMARY KEY, ${c.data} TEXT NOT NULL, ${c.createdAt} INTEGER NOT NULL, ${c.expiresAt} INTEGER NOT NULL)`)
   }
   const get = db.prepare(`SELECT ${c.data} AS data, ${c.expiresAt} AS expiresAt FROM ${table} WHERE ${c.id} = ?`)
-  const upsert = db.prepare(
-    `INSERT INTO ${table} (${c.id}, ${c.data}, ${c.createdAt}, ${c.expiresAt}) VALUES (?, ?, ?, ?) ` +
-      `ON CONFLICT(${c.id}) DO UPDATE SET ${c.data} = excluded.${c.data}, ${c.expiresAt} = excluded.${c.expiresAt}`,
-  )
+  const upsert = subject
+    ? db.prepare(
+        `INSERT INTO ${table} (${c.id}, ${c.data}, ${c.createdAt}, ${c.expiresAt}, ${subject}) VALUES (?, ?, ?, ?, ?) ` +
+          `ON CONFLICT(${c.id}) DO UPDATE SET ${c.data} = excluded.${c.data}, ${c.expiresAt} = excluded.${c.expiresAt}, ${subject} = excluded.${subject}`,
+      )
+    : db.prepare(
+        `INSERT INTO ${table} (${c.id}, ${c.data}, ${c.createdAt}, ${c.expiresAt}) VALUES (?, ?, ?, ?) ` +
+          `ON CONFLICT(${c.id}) DO UPDATE SET ${c.data} = excluded.${c.data}, ${c.expiresAt} = excluded.${c.expiresAt}`,
+      )
   const del = db.prepare(`DELETE FROM ${table} WHERE ${c.id} = ?`)
   const prune = db.prepare(`DELETE FROM ${table} WHERE ${c.expiresAt} < ?`)
 
@@ -55,7 +67,8 @@ export function sqliteSessionStore(db: SqliteLike, options: SqliteStoreOptions =
       }
     },
     save(sid, data, expiresAt) {
-      upsert.run(sid, JSON.stringify(data), Date.now(), expiresAt)
+      if (subject) upsert.run(sid, JSON.stringify(data), Date.now(), expiresAt, idTokenSubject(data.idToken) ?? '')
+      else upsert.run(sid, JSON.stringify(data), Date.now(), expiresAt)
     },
     drop(sid) {
       del.run(sid)
@@ -63,6 +76,18 @@ export function sqliteSessionStore(db: SqliteLike, options: SqliteStoreOptions =
     prune(now) {
       prune.run(now)
     },
+  }
+}
+
+/** The `sub` claim of an ID token, read without verifying it (the token was verified when it was issued to this server). */
+export function idTokenSubject(token: string | undefined): string | null {
+  const payload = token?.split('.')[1]
+  if (!payload) return null
+  try {
+    const sub = (JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { sub?: unknown }).sub
+    return typeof sub === 'string' ? sub : null
+  } catch {
+    return null
   }
 }
 

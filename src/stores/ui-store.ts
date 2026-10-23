@@ -13,7 +13,9 @@ interface UIState {
   isCommandPaletteOpen: boolean
   isSettingsOpen: boolean
   calendarDate: string
-  selectedEventIds: string[]
+  /** Selection mode in the event list: the selected events' keys (eventKey). */
+  selecting: boolean
+  selectedKeys: string[]
   searchQuery: string
   toastMessage: string | null
   toastType: 'success' | 'error' | 'info'
@@ -28,8 +30,10 @@ interface UIState {
   setCommandPaletteOpen: (open: boolean) => void
   setSettingsOpen: (open: boolean) => void
   setCalendarDate: (date: string) => void
-  setSelectedEventIds: (ids: string[]) => void
-  toggleEventSelection: (id: string) => void
+  startSelecting: (key?: string) => void
+  toggleSelected: (key: string) => void
+  setSelected: (keys: string[]) => void
+  stopSelecting: () => void
   setSearchQuery: (query: string) => void
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void
   clearToast: () => void
@@ -48,12 +52,13 @@ export const useUIStore = create<UIState>((set, get) => ({
   isCommandPaletteOpen: false,
   isSettingsOpen: false,
   calendarDate: new Date().toISOString(),
-  selectedEventIds: [],
+  selecting: false,
+  selectedKeys: [],
   searchQuery: '',
   toastMessage: null,
   toastType: 'info',
 
-  setActiveView: (view) => set({ activeView: view, isEditorOpen: false, editingEventId: null }),
+  setActiveView: (view) => set({ activeView: view, isEditorOpen: false, editingEventId: null, selecting: false, selectedKeys: [] }),
   setCalendarMode: (mode) => set({ calendarMode: mode }),
   openEditor: (eventId) => set({ isEditorOpen: true, editingEventId: eventId ?? null, activeView: 'events' }),
   closeEditor: () => set({ isEditorOpen: false, editingEventId: null }),
@@ -63,15 +68,13 @@ export const useUIStore = create<UIState>((set, get) => ({
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   setSettingsOpen: (open) => set({ isSettingsOpen: open }),
   setCalendarDate: (date) => set({ calendarDate: date }),
-  setSelectedEventIds: (ids) => set({ selectedEventIds: ids }),
-  toggleEventSelection: (id) => {
-    const { selectedEventIds } = get()
-    if (selectedEventIds.includes(id)) {
-      set({ selectedEventIds: selectedEventIds.filter((i) => i !== id) })
-    } else {
-      set({ selectedEventIds: [...selectedEventIds, id] })
-    }
+  startSelecting: (key) => set({ selecting: true, selectedKeys: key ? [key] : [] }),
+  toggleSelected: (key) => {
+    const { selectedKeys } = get()
+    set({ selectedKeys: selectedKeys.includes(key) ? selectedKeys.filter((k) => k !== key) : [...selectedKeys, key] })
   },
+  setSelected: (keys) => set({ selectedKeys: keys }),
+  stopSelecting: () => set({ selecting: false, selectedKeys: [] }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   showToast: (message, type = 'info') => {
     set({ toastMessage: message, toastType: type })

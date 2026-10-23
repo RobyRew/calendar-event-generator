@@ -79,21 +79,46 @@ export async function getEventCount(): Promise<number> {
   return db.localEvents.count()
 }
 
+// Local changes that the account sync (src/lib/cloud/prefs-sync.ts) uploads.
+type LocalChange = 'settings' | 'templates'
+let localChangeListener: ((what: LocalChange) => void) | null = null
+export function onLocalChange(fn: ((what: LocalChange) => void) | null): void {
+  localChangeListener = fn
+}
+const changed = (what: LocalChange) => localChangeListener?.(what)
+
 export async function getAllTemplates(): Promise<EventTemplate[]> {
   return db.templates.toArray()
 }
 
 export async function putTemplate(template: EventTemplate): Promise<void> {
   await db.templates.put(template)
+  if (!template.isBuiltIn) changed('templates')
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
   await db.templates.delete(id)
+  changed('templates')
 }
 
 export async function clearCustomTemplates(): Promise<void> {
   // IndexedDB cannot index booleans, so `where('isBuiltIn').equals(0)` matched nothing.
   await db.templates.filter((t) => !t.isBuiltIn).delete()
+  changed('templates')
+}
+
+/** Custom templates only (built-ins are seeded per device). */
+export async function getCustomTemplates(): Promise<EventTemplate[]> {
+  return db.templates.filter((t) => !t.isBuiltIn).toArray()
+}
+
+/** Replace the custom templates with the account's copy (not reported as a local change). */
+export async function replaceCustomTemplates(list: EventTemplate[]): Promise<void> {
+  const builtIn = new Set(DEFAULT_TEMPLATES.map((t) => t.id))
+  await db.transaction('rw', db.templates, async () => {
+    await db.templates.filter((t) => !t.isBuiltIn).delete()
+    await db.templates.bulkPut(list.filter((t) => !builtIn.has(t.id)).map((t) => ({ ...t, isBuiltIn: false })))
+  })
 }
 
 export function loadSettings(): AppSettings {
@@ -124,6 +149,10 @@ export async function clearAllData(): Promise<void> {
   try {
     localStorage.removeItem(STORAGE_KEYS.settings)
     localStorage.removeItem(SEED_KEY)
+    // Clearing this device does not clear the account: the next sync starts afresh
+    // and brings the account's settings and templates back instead of uploading
+    // the emptied ones.
+    localStorage.removeItem(STORAGE_KEYS.prefsSync)
   } catch { /* storage unavailable */ }
 }
 
@@ -143,8 +172,14 @@ export async function importAllData(json: string): Promise<{ events: number; tem
   const events = Array.isArray(obj.events) ? (obj.events as Partial<CalendarEvent>[]).map((e) => normalizeEvent(e)) : []
   const templates = Array.isArray(obj.templates) ? (obj.templates as EventTemplate[]) : []
   if (events.length > 0) await putEvents(events)
-  if (templates.length > 0) await db.templates.bulkPut(templates)
-  if (obj.settings && typeof obj.settings === 'object') saveSettings({ ...DEFAULT_SETTINGS, ...(obj.settings as Partial<AppSettings>) })
+  if (templates.length > 0) {
+    await db.templates.bulkPut(templates)
+    changed('templates')
+  }
+  if (obj.settings && typeof obj.settings === 'object') {
+    saveSettings({ ...DEFAULT_SETTINGS, ...(obj.settings as Partial<AppSettings>) })
+    changed('settings')
+  }
   return { events: events.length, templates: templates.length }
 }
 

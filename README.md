@@ -33,7 +33,8 @@
 - Create and edit events with an inline editor
 - Right-click / long-press context menu (Edit, Duplicate, Export, Share live link, Delete)
 - 10 built-in templates (Meeting, Birthday, Doctor, Workout, Flight, etc.) — localized per language
-- Import `.ics` / `.json` files via file picker or drag & drop (several at once) — import as events or templates
+- Import `.ics` / `.json` files via file picker or drag & drop (several at once) — import as events or templates, onto this device or into an account calendar
+- Select several events in the list and move, copy or delete them together
 - Multi-select export with checkboxes
 - 50-level undo/redo (⌘Z / ⌘⇧Z)
 - Unsaved changes detection with discard prompt
@@ -72,6 +73,10 @@
 - Account calendars next to the events on this device, each with its own show/hide switch
 - Live share links for a whole calendar or a single event, in four levels — see [Sharing](#sharing-live-calendars)
 - Collaborators join through an editor invite and edit events with you
+- Move events between this device and account calendars (a recurring event moves with its changed occurrences), or copy them
+- Subscribe to an external calendar by its `.ics` / `webcal://` link (public holidays, another provider's published calendar): the server refreshes it every few hours and its events are read-only
+- Settings, custom templates and which calendars are hidden are saved with the account and follow you to every device
+- Download everything the account holds as JSON, or delete the account and all its data
 
 **Interface**
 - Three themes: Light, Dark, and OLED
@@ -83,7 +88,8 @@
 
 **Privacy**
 - Without signing in, everything stays in this browser (IndexedDB); nothing is sent anywhere
-- Events you put in an account calendar are stored on the server so they can be shared; events on this device are only uploaded when you choose "Copy to account"
+- Events you put in an account calendar are stored on the server so they can be shared; events on this device are only uploaded when you move or copy them to the account
+- Signed in, your settings, custom templates and hidden calendars are stored with the account too
 - Full backup export/import (JSON)
 - Option to strip personal data (organizer, attendees, contact) on export
 

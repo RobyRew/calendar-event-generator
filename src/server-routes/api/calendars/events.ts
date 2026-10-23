@@ -9,7 +9,8 @@ import { calendarFor, eventFor } from '@/server/views'
 // /api/calendars/[id]/events
 //   GET              — all events (calendar viewer+)
 //   PUT    {event}   — create or update by UID + RECURRENCE-ID (editor on the calendar or the event)
-//   DELETE ?uid=&recurrenceId= — one override, or the event with its overrides
+//   DELETE ?uid=&recurrenceId=[&masterOnly=1] — one override, or the event with its
+//                    overrides (masterOnly: only the master row)
 
 export const GET: APIRoute = handle(async ({ request, params }) => {
   const user = await requireUser(request)
@@ -32,6 +33,6 @@ export const DELETE: APIRoute = handle(async ({ request, params, url }) => {
   if (!uid) throw new HttpError(400, 'uid_required')
   const db = getDb()
   const { calendar } = eventFor(db, user.id, params.id!, uid, 'editor')
-  deleteEvent(db, calendar.id, uid, url.searchParams.get('recurrenceId') ?? '')
+  deleteEvent(db, calendar.id, uid, url.searchParams.get('recurrenceId') ?? '', url.searchParams.get('masterOnly') === '1')
   return json({ ok: true })
 })

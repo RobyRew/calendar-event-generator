@@ -15,6 +15,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useEventStore } from '@/stores/event-store'
 import { useKeyboard } from '@/hooks/use-keyboard'
 import { seedDefaultTemplates } from '@/lib/storage'
+import { startPrefsSync, syncPrefs } from '@/lib/cloud/prefs-sync'
 
 function AppContent() {
   const { activeView, toastMessage, toastType, clearToast } = useUIStore()
@@ -67,12 +68,14 @@ function useCloudSync() {
       params.delete('auth_error')
       history.replaceState(null, '', `${window.location.pathname}${params.size ? `?${params}` : ''}`)
     }
+    startPrefsSync()
     let last = 0
     const sync = async () => {
       if (Date.now() - last < 30_000) return
       last = Date.now()
       await loadAccount()
       await loadCloud().catch(() => {})
+      await syncPrefs().catch(() => {})
     }
     sync()
     const onVisible = () => document.visibilityState === 'visible' && sync()
@@ -83,7 +86,10 @@ function useCloudSync() {
 
   useEffect(() => {
     if (!syncError) return
-    showToast(getTranslations(language).syncError, 'error')
+    const t = getTranslations(language)
+    // The store keeps the API's error code; a few have their own explanation.
+    const message = syncError === 'uid_exists' ? t.moveFailedExists : syncError === 'read_only' ? t.readOnlyEvent : t.syncError
+    showToast(message, 'error')
     clearSyncError()
   }, [syncError, showToast, clearSyncError, language])
 }

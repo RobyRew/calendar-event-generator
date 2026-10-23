@@ -31,6 +31,8 @@ export const POST: APIRoute = handle(async ({ request }) => {
   const eventUid = body.eventUid ?? null
   if (eventUid && listEventsByUid(db, calendar.id, eventUid).length === 0) throw new HttpError(404, 'event_not_found')
   if (body.expiresAt && body.expiresAt <= Date.now()) throw new HttpError(400, 'expiry_in_past')
+  // An editor invite to a subscription calendar would grant nothing: its events cannot be edited.
+  if (body.permission === 'edit' && calendar.sourceUrl) throw new HttpError(409, 'read_only')
   const link = createShareLink(db, { calendarId: calendar.id, eventUid, permission: body.permission, label: body.label, createdBy: user.id, expiresAt: body.expiresAt ?? null })
   return json({ share: shareView(db, link) }, { status: 201 })
 })

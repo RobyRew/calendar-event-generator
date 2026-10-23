@@ -11,6 +11,27 @@ export const calendarInput = z.object({
 
 export const calendarPatch = calendarInput.partial()
 
+/** POST /api/calendars with sourceUrl: a subscription to an external .ics URL (name optional, taken from the feed). */
+export const subscriptionInput = z.object({
+  sourceUrl: z.string().trim().min(1).max(2048),
+  name: z.string().trim().max(120).optional(),
+  color: color.optional(),
+  timezone: z.string().max(64).optional(),
+})
+
+export const moveInput = z.object({
+  uids: z.array(z.string().min(1).max(255)).min(1).max(500),
+  targetCalendarId: z.string().min(1).max(64),
+})
+
+export const prefPut = z.object({
+  value: z.unknown(),
+  baseVersion: z.number().int().min(0),
+})
+
+/** DELETE /api/account: the user types DELETE to confirm. */
+export const accountDelete = z.object({ confirm: z.literal('DELETE') })
+
 const weekday = z.enum(['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'])
 const intList = z.array(z.number().int()).max(400)
 
@@ -50,7 +71,11 @@ export const eventInput = z.looseObject({
   allDay: z.boolean().optional(),
 })
 
-export const importInput = z.object({ events: z.array(eventInput).max(5000) })
+export const importInput = z.object({
+  events: z.array(eventInput).max(5000),
+  /** Moves use this: refuse (409 uid_exists) instead of overwriting an event the calendar already has. */
+  createOnly: z.boolean().optional(),
+})
 
 export const permission = z.enum(['busy', 'limited', 'full', 'edit'])
 

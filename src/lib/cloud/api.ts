@@ -21,6 +21,17 @@ export interface CloudCalendar {
   timezone: string
   role: Role
   ownerName: string | null
+  /** The .ics URL of a subscription calendar (read-only, refreshed by the server); null otherwise. */
+  sourceUrl: string | null
+  fetchedAt: number | null
+  fetchError: string | null
+}
+
+export type PrefSection = 'settings' | 'templates' | 'hidden'
+
+export interface PrefEntry {
+  value: unknown
+  version: number
 }
 
 export interface Share {
@@ -54,7 +65,7 @@ export interface SharedEntry {
 }
 
 export class ApiError extends Error {
-  constructor(readonly status: number, readonly code: string) {
+  constructor(readonly status: number, readonly code: string, readonly data: Record<string, unknown> = {}) {
     super(code)
   }
 }
@@ -67,7 +78,7 @@ async function request<T>(path: string, init: { method?: string; body?: unknown 
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   })
   const data = (await res.json().catch(() => ({}))) as { error?: string }
-  if (!res.ok) throw new ApiError(res.status, data.error ?? `http_${res.status}`)
+  if (!res.ok) throw new ApiError(res.status, data.error ?? `http_${res.status}`, data)
   return data as T
 }
 
@@ -88,10 +99,30 @@ export const api = {
     request<{ events: CalendarEvent[] }>(`/api/calendars/${enc(calendarId)}/events`).then((r) => r.events),
   putEvent: (calendarId: string, event: CalendarEvent) =>
     request<{ event: CalendarEvent }>(`/api/calendars/${enc(calendarId)}/events`, { method: 'PUT', body: event }).then((r) => r.event),
-  deleteEvent: (calendarId: string, uid: string, recurrenceId = '') =>
-    request(`/api/calendars/${enc(calendarId)}/events?uid=${enc(uid)}${recurrenceId ? `&recurrenceId=${enc(recurrenceId)}` : ''}`, { method: 'DELETE' }),
-  importEvents: (calendarId: string, events: CalendarEvent[]) =>
-    request<{ events: CalendarEvent[] }>(`/api/calendars/${enc(calendarId)}/import`, { method: 'POST', body: { events } }).then((r) => r.events),
+  /** Delete an override, or (recurrenceId '') the event with its overrides; masterOnly keeps the overrides. */
+  deleteEvent: (calendarId: string, uid: string, recurrenceId = '', masterOnly = false) =>
+    request(`/api/calendars/${enc(calendarId)}/events?uid=${enc(uid)}${recurrenceId ? `&recurrenceId=${enc(recurrenceId)}` : ''}${masterOnly ? '&masterOnly=1' : ''}`, { method: 'DELETE' }),
+  /** Bulk upsert; with createOnly (moves), a UID the calendar already has is refused with 409 uid_exists. */
+  importEvents: (calendarId: string, events: CalendarEvent[], createOnly = false) =>
+    request<{ events: CalendarEvent[] }>(`/api/calendars/${enc(calendarId)}/import`, { method: 'POST', body: { events, ...(createOnly ? { createOnly } : {}) } }).then((r) => r.events),
+  /** Delete whole events (with their overrides) in one request; masterOnly deletes only the master rows. */
+  deleteEvents: (calendarId: string, uids: string[], masterOnly = false) =>
+    request<{ deleted: number }>(`/api/calendars/${enc(calendarId)}/delete-events`, { method: 'POST', body: { uids, ...(masterOnly ? { masterOnly } : {}) } }),
+  /** Move whole events (by UID, overrides included) to another account calendar. */
+  moveEvents: (calendarId: string, uids: string[], targetCalendarId: string) =>
+    request<{ events: CalendarEvent[] }>(`/api/calendars/${enc(calendarId)}/move`, { method: 'POST', body: { uids, targetCalendarId } }).then((r) => r.events),
+  subscribe: (body: { sourceUrl: string; name?: string; color?: string; timezone?: string }) =>
+    request<{ calendar: CloudCalendar }>('/api/calendars', { method: 'POST', body }).then((r) => r.calendar),
+  refreshCalendar: (id: string) =>
+    request<{ calendar: CloudCalendar | null; ok: boolean; error: string | null }>(`/api/calendars/${enc(id)}/refresh`, { method: 'POST', body: {} }),
+
+  prefs: () => request<{ prefs: Partial<Record<PrefSection, PrefEntry>> }>('/api/prefs').then((r) => r.prefs),
+  /** Write a section against the version last seen; a 409 ApiError carries the stored entry in data.entry. */
+  putPref: (section: PrefSection, value: unknown, baseVersion: number) =>
+    request<{ entry: PrefEntry }>(`/api/prefs/${section}`, { method: 'PUT', body: { value, baseVersion } }).then((r) => r.entry),
+
+  exportUrl: '/api/account/export',
+  deleteAccount: () => request('/api/account', { method: 'DELETE', body: { confirm: 'DELETE' } }),
   shared: () => request<{ shared: SharedEntry[] }>('/api/shared').then((r) => r.shared),
 
   members: (calendarId: string) => request<{ members: Member[] }>(`/api/calendars/${enc(calendarId)}/members`).then((r) => r.members),

@@ -58,6 +58,11 @@ export function bucketCount(): number {
   return buckets.size
 }
 
+/** Tests: forget every bucket. */
+export function resetRateLimitsForTests(): void {
+  buckets.clear()
+}
+
 export function clientIp(request: Request): string {
   // Traefik appends the address it received the connection from, so the
   // right-most X-Forwarded-For entry is the client; entries to its left are

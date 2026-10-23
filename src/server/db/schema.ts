@@ -24,8 +24,10 @@ export const logtoSessions = sqliteTable(
     data: text('data').notNull(),
     createdAt: integer('created_at').notNull(),
     expiresAt: integer('expires_at').notNull(),
+    // The Logto subject once signed in ('' before), so a user's sessions are found by index.
+    subject: text('subject'),
   },
-  (t) => [index('logto_sessions_expires_idx').on(t.expiresAt)],
+  (t) => [index('logto_sessions_expires_idx').on(t.expiresAt), index('logto_sessions_subject_idx').on(t.subject)],
 )
 
 // ── Calendars and events ────────────────────────────────────────────────────
@@ -40,8 +42,15 @@ export const calendars = sqliteTable(
     timezone: text('timezone').notNull(),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
+    // Set for a subscription to an external .ics URL (src/server/subscriptions.ts):
+    // the server replaces its events on each refresh, and nobody may edit them.
+    sourceUrl: text('source_url'),
+    sourceEtag: text('source_etag'),
+    sourceLastModified: text('source_last_modified'),
+    fetchedAt: integer('fetched_at'),
+    fetchError: text('fetch_error'),
   },
-  (t) => [index('calendars_owner_idx').on(t.ownerId)],
+  (t) => [index('calendars_owner_idx').on(t.ownerId), index('calendars_source_idx').on(t.sourceUrl)],
 )
 
 export const events = sqliteTable(
@@ -118,6 +127,16 @@ export const shareLinks = sqliteTable(
     check('share_links_permission_check', sql`${t.permission} in ('busy', 'limited', 'full', 'edit')`),
   ],
 )
+
+// ── Per-user preferences ────────────────────────────────────────────────────
+// Settings, custom templates and hidden calendars, so they follow the account to
+// every device. One JSON document per user, in sections ({value, version} each);
+// a client writes a section against the version it last saw (src/server/prefs.ts).
+export const userPrefs = sqliteTable('user_prefs', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  data: text('data').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+})
 
 export type UserRow = typeof users.$inferSelect
 export type CalendarRow = typeof calendars.$inferSelect

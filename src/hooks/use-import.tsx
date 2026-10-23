@@ -1,25 +1,41 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Calendar, FileStack } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { Select } from '@/components/ui/Select'
 import { useEventStore } from '@/stores/event-store'
+import { useAccountStore, writableCalendars } from '@/stores/account-store'
+import { CLOUD } from '@/lib/cloud/api'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations, t as translate } from '@/i18n'
 import { parseICSFile } from '@/lib/ics-parser'
 import { normalizeEvent } from '@/lib/normalize'
-import { readFileAsText, generateUID, eventKey } from '@/lib/utils'
+import { readFileAsText, generateUID } from '@/lib/utils'
 import { putTemplate } from '@/lib/storage'
+import { isUnchangedDuplicate } from '@/lib/import-rules'
 import type { CalendarEvent, EventTemplate } from '@/types'
 
-/** ICS stores LAST-MODIFIED to the second; comparing milliseconds made every re-import look modified. */
-function sameVersion(a: CalendarEvent, b: CalendarEvent): boolean {
-  const secs = (iso: string) => (iso ? Math.floor(new Date(iso).getTime() / 1000) : 0)
-  return a.sequence === b.sequence && secs(a.lastModified) === secs(b.lastModified)
-}
+
+
+/** Identity of an event within one place (this device or one calendar). */
+const idOf = (e: CalendarEvent) => `${e.uid}\u0000${e.recurrenceId}`
 
 export function useImport() {
-  const { events, importEvents } = useEventStore()
+  const { events, importEvents, importToCalendar } = useEventStore()
   const { settings } = useSettingsStore()
+  /** Where imported events go: '' = this device, otherwise an account calendar id. */
+  const [target, setTarget] = useState('')
+  // Resolves false when an account import failed (the store reports the error).
+  const doImport = useCallback(
+    async (list: CalendarEvent[]): Promise<boolean> => {
+      if (!target) {
+        await importEvents(list)
+        return true
+      }
+      return importToCalendar(target, list)
+    },
+    [target, importEvents, importToCalendar],
+  )
 
   const [importChoiceEvents, setImportChoiceEvents] = useState<CalendarEvent[] | null>(null)
   const [duplicateChoice, setDuplicateChoice] = useState<{
@@ -56,17 +72,18 @@ export function useImport() {
   const handleImportAsEvents = useCallback(async (): Promise<{ count: number } | null> => {
     if (!importChoiceEvents) return null
 
-    const existingByKey = new Map(events.map((e) => [eventKey(e), e]))
-    const duplicates = importChoiceEvents.filter((e) => existingByKey.has(eventKey(e)))
-    const fresh = importChoiceEvents.filter((e) => !existingByKey.has(eventKey(e)))
+    // Duplicates are looked for where the events are going.
+    const existingByKey = new Map(events.filter((e) => (e.calendarId ?? '') === target).map((e) => [idOf(e), e]))
+    const duplicates = importChoiceEvents.filter((e) => existingByKey.has(idOf(e)))
+    const fresh = importChoiceEvents.filter((e) => !existingByKey.has(idOf(e)))
 
     if (duplicates.length > 0) {
       const modifiedDuplicates: CalendarEvent[] = []
       const unmodifiedDuplicates: CalendarEvent[] = []
 
       for (const dup of duplicates) {
-        const existing = existingByKey.get(eventKey(dup))
-        if (existing && !sameVersion(existing, dup)) {
+        const existing = existingByKey.get(idOf(dup))
+        if (existing && !isUnchangedDuplicate(existing, dup, !!target)) {
           modifiedDuplicates.push({ ...dup, uid: generateUID(), recurrenceId: '' })
         } else {
           unmodifiedDuplicates.push(dup)
@@ -74,7 +91,7 @@ export function useImport() {
       }
 
       if (modifiedDuplicates.length > 0) {
-        await importEvents([...fresh, ...modifiedDuplicates])
+        if (!(await doImport([...fresh, ...modifiedDuplicates]))) return null
       }
 
       if (unmodifiedDuplicates.length > 0) {
@@ -87,7 +104,7 @@ export function useImport() {
       }
 
       if (fresh.length > 0 && modifiedDuplicates.length === 0) {
-        await importEvents(fresh)
+        if (!(await doImport(fresh))) return null
       }
 
       const total = fresh.length + modifiedDuplicates.length
@@ -95,30 +112,30 @@ export function useImport() {
       return { count: total }
     }
 
-    await importEvents(importChoiceEvents)
+    if (!(await doImport(importChoiceEvents))) return null
     const count = importChoiceEvents.length
     setImportChoiceEvents(null)
     return { count }
-  }, [importChoiceEvents, events, importEvents])
+  }, [importChoiceEvents, events, target, doImport])
 
   const handleDuplicateOverwrite = useCallback(async (): Promise<{ count: number } | null> => {
     if (!duplicateChoice) return null
     const all = [...duplicateChoice.fresh, ...duplicateChoice.duplicates]
-    await importEvents(all)
+    if (!(await doImport(all))) return null
     const count = all.length
     setDuplicateChoice(null)
     return { count }
-  }, [duplicateChoice, importEvents])
+  }, [duplicateChoice, doImport])
 
   const handleDuplicateCreateNew = useCallback(async (): Promise<{ count: number } | null> => {
     if (!duplicateChoice) return null
     const renamed = duplicateChoice.duplicates.map((e) => ({ ...e, uid: generateUID(), recurrenceId: '' }))
     const all = [...duplicateChoice.fresh, ...renamed]
-    await importEvents(all)
+    if (!(await doImport(all))) return null
     const count = all.length
     setDuplicateChoice(null)
     return { count }
-  }, [duplicateChoice, importEvents])
+  }, [duplicateChoice, doImport])
 
   const handleImportAsTemplates = useCallback(async (): Promise<{ count: number } | null> => {
     if (!importChoiceEvents) return null
@@ -159,6 +176,8 @@ export function useImport() {
   }, [importChoiceEvents, settings.defaultCalendarColor])
 
   return {
+    target,
+    setTarget,
     parseFile,
     parseFiles,
     importChoiceEvents,
@@ -182,7 +201,12 @@ export function ImportModals({ hook, onSuccess }: ImportModalsProps) {
   const { settings } = useSettingsStore()
   const t = getTranslations(settings.language)
 
+  const signedIn = useAccountStore((s) => s.status === 'signedIn')
+  const calendars = useAccountStore((s) => s.calendars)
+  const targets = CLOUD && signedIn ? writableCalendars(calendars) : []
   const {
+    target,
+    setTarget,
     importChoiceEvents,
     closeImportChoice,
     duplicateChoice,
@@ -192,6 +216,11 @@ export function ImportModals({ hook, onSuccess }: ImportModalsProps) {
     handleDuplicateOverwrite,
     handleDuplicateCreateNew,
   } = hook
+  // A calendar that went away (deleted, signed out) is no longer a target.
+  const stale = !!target && !targets.some((c) => c.id === target)
+  useEffect(() => {
+    if (stale) setTarget('')
+  }, [stale, setTarget])
 
   const wrapAction = async (action: () => Promise<{ count: number } | null>) => {
     const result = await action()
@@ -211,6 +240,14 @@ export function ImportModals({ hook, onSuccess }: ImportModalsProps) {
           <p className="text-sm text-text-3">
             {translate(t, 'selectedCount', { count: importChoiceEvents?.length ?? 0 })}
           </p>
+          {targets.length > 0 && (
+            <Select
+              label={t.importInto}
+              value={targets.some((c) => c.id === target) ? target : ''}
+              onChange={(e) => setTarget(e.target.value)}
+              options={[{ value: '', label: t.onThisDevice }, ...targets.map((c) => ({ value: c.id, label: c.name }))]}
+            />
+          )}
           <Button
             variant="primary"
             onClick={() => wrapAction(handleImportAsEvents)}

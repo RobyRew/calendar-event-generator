@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Save, Trash2, Copy, X } from 'lucide-react'
+import { Save, Trash2, Copy, X, FolderInput, Lock } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Select } from '@/components/ui/Select'
@@ -22,7 +22,8 @@ import { addDaysIn, combineWall, fromWall, startOfDayIn, toWall, wallDateString,
 import { reanchorRecurrence } from '@/lib/recurrence-edit'
 import { COMMON_TIMEZONES } from '@/lib/constants'
 import { useIsMobile } from '@/hooks/use-media-query'
-import { duplicateCalendarId, useAccountStore, writableCalendars } from '@/stores/account-store'
+import { canEditCalendar, canEditEvent, duplicateCalendarId, useAccountStore, writableCalendars } from '@/stores/account-store'
+import { MoveDialog } from './MoveDialog'
 import { CLOUD } from '@/lib/cloud/api'
 
 interface EventEditorProps {
@@ -65,6 +66,9 @@ export function EventEditor({ inline }: EventEditorProps) {
   }, [existingEvent])
 
   const isDirty = JSON.stringify(event) !== originalRef.current
+  // Events from a subscription, or shared to view only, open read-only: saving them would be refused.
+  const readOnly = !!existingEvent && !canEditEvent(existingEvent)
+  const [moving, setMoving] = useState(false)
 
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -246,16 +250,25 @@ export function EventEditor({ inline }: EventEditorProps) {
         <h2 className="text-base font-semibold text-text">
           {editingEventId ? t.editEvent : t.newEvent}
         </h2>
-        <button onClick={handleSave} className="text-accent text-sm font-semibold" disabled={!event.summary.trim()}>
-          {t.save}
-        </button>
+        {readOnly
+          ? <span className="w-8" />
+          : (
+            <button onClick={handleSave} className="text-accent text-sm font-semibold" disabled={!event.summary.trim()}>
+              {t.save}
+            </button>
+          )}
       </div>
+      {readOnly && (
+        <p className="flex items-center gap-2 px-4 py-2 text-xs text-text-2 bg-surface-2 border-b border-border">
+          <Lock size={14} className="shrink-0" /> {t.readOnlyEvent}
+        </p>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
         <Tabs tabs={tabs}>
           {(activeTab) => (
-            <div className="animate-fade-in">
+            <fieldset disabled={readOnly} className="animate-fade-in min-w-0 border-0 p-0 m-0">
               {activeTab === 'basic' && (
                 <div className="space-y-4">
                   {!editingEventId && targets.length > 0 && (
@@ -481,7 +494,7 @@ export function EventEditor({ inline }: EventEditorProps) {
                   </div>
                 </div>
               )}
-            </div>
+            </fieldset>
           )}
         </Tabs>
       </div>
@@ -489,17 +502,30 @@ export function EventEditor({ inline }: EventEditorProps) {
       {/* Footer actions */}
       {editingEventId && (
         <div className="flex items-center gap-2 px-4 py-3 pb-4 border-t border-border shrink-0">
-          <Button variant="danger" size="sm" onClick={handleDelete}>
-            <Trash2 size={16} /> {t.delete}
-          </Button>
+          {!readOnly && (
+            <Button variant="danger" size="sm" onClick={handleDelete}>
+              <Trash2 size={16} /> {t.delete}
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={handleDuplicate}>
             <Copy size={16} /> {t.duplicate}
           </Button>
+          {CLOUD && accountStatus === 'signedIn' && existingEvent && canEditCalendar(existingEvent.calendarId) && (
+            // Moves the saved version, so unsaved edits have to be saved first.
+            <Button variant="ghost" size="sm" onClick={() => setMoving(true)} disabled={isDirty} title={isDirty ? t.unsavedChanges : undefined}>
+              <FolderInput size={16} /> {t.moveTo}
+            </Button>
+          )}
           <div className="flex-1" />
-          <Button variant="primary" size="sm" onClick={handleSave} disabled={!event.summary.trim()}>
-            <Save size={16} /> {t.save}
-          </Button>
+          {!readOnly && (
+            <Button variant="primary" size="sm" onClick={handleSave} disabled={!event.summary.trim()}>
+              <Save size={16} /> {t.save}
+            </Button>
+          )}
         </div>
+      )}
+      {moving && editingEventId && (
+        <MoveDialog open mode="move" keys={[editingEventId]} onClose={() => setMoving(false)} onDone={closeEditor} />
       )}
     </div>
   )

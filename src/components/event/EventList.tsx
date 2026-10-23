@@ -1,23 +1,34 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { compareAsc } from 'date-fns'
-import { Plus, Calendar as CalIcon } from 'lucide-react'
+import { Plus, Calendar as CalIcon, CheckSquare, FolderInput, CopyPlus, Trash2, X } from 'lucide-react'
 import { useEventStore } from '@/stores/event-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useSettingsStore } from '@/stores/settings-store'
-import { getTranslations } from '@/i18n'
+import { getTranslations, t as tr } from '@/i18n'
 import { generateUID, eventKey, eventDisplayStart } from '@/lib/utils'
-import { duplicateCalendarId } from '@/stores/account-store'
+import { canEditCalendar, canEditEvent, duplicateCalendarId, useAccountStore } from '@/stores/account-store'
+import { CLOUD } from '@/lib/cloud/api'
 import { EventCard } from './EventCard'
 import { EventEditor } from './EventEditor'
+import { MoveDialog } from './MoveDialog'
 import { Button } from '@/components/ui/Button'
 import { useVisibleEvents } from '@/hooks/use-visible-events'
+import type { CalendarEvent } from '@/types'
 
 export function EventList() {
   const events = useVisibleEvents()
-  const { addEvent, deleteEvent } = useEventStore()
-  const { openEditor, searchQuery, isEditorOpen, editingEventId } = useUIStore()
+  const { addEvent, deleteEvent, deleteEvents } = useEventStore()
+  const {
+    openEditor, searchQuery, isEditorOpen, editingEventId, showToast,
+    selecting, selectedKeys, startSelecting, toggleSelected, setSelected, stopSelecting,
+  } = useUIStore()
   const { settings } = useSettingsStore()
+  const signedIn = useAccountStore((s) => s.status === 'signedIn')
   const t = getTranslations(settings.language)
+  const [dialog, setDialog] = useState<{ mode: 'move' | 'copy'; keys: string[] } | null>(null)
+  // Moving and copying need somewhere else to go: an account (server build, signed in).
+  const accounts = CLOUD && signedIn
+  const canMove = (e: CalendarEvent) => accounts && canEditCalendar(e.calendarId)
 
   const filtered = useMemo(() => {
     let list = [...events]
@@ -33,6 +44,17 @@ export function EventList() {
     list.sort((a, b) => compareAsc(eventDisplayStart(a), eventDisplayStart(b)))
     return list
   }, [events, searchQuery])
+
+  const selectedEvents = events.filter((e) => selectedKeys.includes(eventKey(e)))
+
+  const deleteSelected = async () => {
+    const count = selectedKeys.length
+    if (!confirm(tr(t, 'deleteSelectedConfirm', { count }))) return
+    if (await deleteEvents(selectedKeys)) {
+      showToast(tr(t, 'deletedN', { count }), 'success')
+      stopSelecting()
+    }
+  }
 
   const handleDuplicate = async (event: typeof events[0]) => {
     const newUid = generateUID()
@@ -51,6 +73,7 @@ export function EventList() {
   }
 
   const handleCardClick = (key: string) => {
+    if (selecting) return toggleSelected(key)
     if (isEditorOpen && editingEventId === key) {
       // Let the editor's close button handle it (which checks for unsaved changes)
       // Dispatch a custom event that EventEditor listens for
@@ -75,10 +98,24 @@ export function EventList() {
 
   return (
     <div className="space-y-2 p-4 pb-24 md:pb-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-2">
         <h2 className="text-sm font-medium text-text-3">
-          {filtered.length} {t.events.toLowerCase()}
+          {selecting ? tr(t, 'selectedN', { count: selectedKeys.length }) : `${filtered.length} ${t.events.toLowerCase()}`}
         </h2>
+        {selecting ? (
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setSelected(selectedKeys.length === filtered.length ? [] : filtered.map(eventKey))}>
+              {selectedKeys.length === filtered.length ? t.deselectAll : t.selectAll}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={stopSelecting} aria-label={t.cancel}><X size={16} /></Button>
+          </div>
+        ) : (
+          filtered.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => startSelecting()}>
+              <CheckSquare size={16} /> {t.select}
+            </Button>
+          )
+        )}
       </div>
 
       {/* New event editor at top */}
@@ -95,6 +132,11 @@ export function EventList() {
             onEdit={() => handleCardClick(eventKey(event))}
             onDuplicate={() => handleDuplicate(event)}
             onDelete={() => deleteEvent(eventKey(event))}
+            onMove={canMove(event) ? () => setDialog({ mode: 'move', keys: [eventKey(event)] }) : undefined}
+            onCopy={accounts ? () => setDialog({ mode: 'copy', keys: [eventKey(event)] }) : undefined}
+            onSelect={selecting ? undefined : () => startSelecting(eventKey(event))}
+            selecting={selecting}
+            selected={selecting && selectedKeys.includes(eventKey(event))}
           />
           {/* Inline editor below active card */}
           {isEditorOpen && editingEventId === eventKey(event) && (
@@ -107,6 +149,29 @@ export function EventList() {
 
       {filtered.length === 0 && searchQuery && (
         <p className="text-sm text-text-3 text-center py-8">{t.noResults}</p>
+      )}
+
+      {selecting && selectedKeys.length > 0 && (
+        <div className="sticky bottom-20 md:bottom-4 z-30 flex items-center gap-2 rounded-xl border border-border bg-surface/95 backdrop-blur p-2 shadow-lg">
+          {accounts && (
+            <Button variant="secondary" size="sm" disabled={!selectedEvents.every(canMove)} onClick={() => setDialog({ mode: 'move', keys: selectedKeys })}>
+              <FolderInput size={16} /> {t.moveTo}
+            </Button>
+          )}
+          {accounts && (
+            <Button variant="secondary" size="sm" onClick={() => setDialog({ mode: 'copy', keys: selectedKeys })}>
+              <CopyPlus size={16} /> {t.copyTo}
+            </Button>
+          )}
+          <div className="flex-1" />
+          <Button variant="danger" size="sm" disabled={!selectedEvents.every(canEditEvent)} onClick={deleteSelected}>
+            <Trash2 size={16} /> {t.delete}
+          </Button>
+        </div>
+      )}
+
+      {dialog && (
+        <MoveDialog open mode={dialog.mode} keys={dialog.keys} onClose={() => setDialog(null)} onDone={stopSelecting} />
       )}
     </div>
   )

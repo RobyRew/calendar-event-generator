@@ -43,8 +43,22 @@ Feeds and share pages load a whole calendar per request, so its size is bounded:
 | One recurring event: changed occurrences | 500 | `413 too_many_overrides` |
 | One recurring event: master plus changed occurrences | 2 MiB of JSON | `413 event_too_large` |
 | Import request | 5,000 events, 8 MiB body | `400` / `413 too_large` |
+| Calendars a user owns (subscriptions included) | 50 | `409 too_many_calendars` |
+| Stored event data across a user's calendars | 64 MiB of JSON | `413 account_full` |
 
 An import is checked once, after all its events are written, and rolled back as a whole if the result is over a limit. Edits that make an event smaller are always accepted.
+
+## Moving events between calendars
+
+`POST /api/calendars/<id>/move {uids, targetCalendarId}` moves whole events (a master with its overrides, by UID) to another account calendar in one transaction, keeping their UIDs and stored data. It needs editor rights on both calendars, refuses a UID the target already has (`409 uid_exists`), and checks the target's limits. Event-level invites and share links point at the old calendar, so they are removed, as when the event is deleted.
+
+Moves between this device and the account go through `POST /api/calendars/<id>/import {events, createOnly: true}` (to the account; `createOnly` refuses a UID the calendar already has with `409 uid_exists` instead of overwriting it) or a device write plus `POST /api/calendars/<id>/delete-events {uids}` (to the device, up to 1,000 events per request). The app refuses a move onto an event that already exists at the destination, on either side, and undo restores both halves of a move. Undo and redo write large changes with these same bulk requests, so they stay within the API rate limit.
+
+## Subscriptions to external calendars
+
+`POST /api/calendars {sourceUrl, name?, color?, timezone?}` creates a calendar whose events come from an `.ics` URL (`webcal://` is fetched as `https://`). The server fetches it once before creating the calendar, so a bad link is reported straight away, then every three hours (`POST /api/calendars/<id>/refresh` asks for one now, at most once a minute). Each refresh replaces the calendar's events; a failed refresh keeps the previous ones and records the error. Its events cannot be edited (`409 read_only`), and it cannot get editor invites, but it can be shared like any calendar.
+
+The server fetches URLs that users type in, so `src/server/subscriptions.ts` guards each request: `http`/`https` only, no credentials in the URL, every resolved address (also after each of up to three redirects) must be public — loopback, private, link-local, CGNAT (Tailscale's 100.64/10), multicast and reserved ranges are refused —, no compression, 5 MB and 15 seconds at most, a new socket per request, and the bodies of redirects and errors are never read. A blocked address, an unknown host name and a refused connection all report `unreachable`, so the codes reveal nothing about the server's own network. Parsing runs on the server's request thread, so it is bounded: the parser stops on a feed with more events than a calendar may hold (10,000), more date work than a full calendar needs (150,000 units: 1 per UTC or date-only value, 3 per value that needs a zone conversion), or components nested more than 32 deep. Up to 20 subscriptions per user; two new subscriptions and four manual refreshes a minute per user.
 
 ## How subscribers' apps behave
 

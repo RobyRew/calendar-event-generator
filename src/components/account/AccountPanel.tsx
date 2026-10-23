@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Eye, EyeOff, LogIn, LogOut, Pencil, Plus, Share2, Trash2, Upload, UserMinus } from 'lucide-react'
+import { Copy, Download, Eye, EyeOff, Link2, LogIn, LogOut, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, UserMinus } from 'lucide-react'
+import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -10,11 +11,12 @@ import { useEventStore } from '@/stores/event-store'
 import { useSettingsStore } from '@/stores/settings-store'
 import { useUIStore } from '@/stores/ui-store'
 import { getTranslations, t as tr } from '@/i18n'
-import { api } from '@/lib/cloud/api'
-import { cn } from '@/lib/utils'
+import { api, ApiError } from '@/lib/cloud/api'
+import { cn, eventKey } from '@/lib/utils'
 
 // The "Account" view (server build only): sign-in state, account calendars with
-// show/hide, sharing, members, and copying this device's events into an account.
+// show/hide, sharing, members, subscriptions to external calendars, moving this
+// device's events into an account, and the account's data (download, delete).
 
 function VisibilityToggle({ id, label }: { id: string; label: string }) {
   const hidden = useAccountStore((s) => s.hidden.includes(id))
@@ -47,9 +49,56 @@ export function AccountPanel() {
   const [shareTarget, setShareTarget] = useState<{ calendarId: string; eventUid: string | null; title: string } | null>(null)
   const [copyTarget, setCopyTarget] = useState('')
   const [busy, setBusy] = useState(false)
+  const [subUrl, setSubUrl] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteText, setDeleteText] = useState('')
+  const { moveEvents, copyEvents } = useEventStore()
 
   const localEvents = events.filter((e) => !e.calendarId)
   const writable = writableCalendars(calendars)
+  const own = calendars.filter((c) => !c.sourceUrl)
+  const subscriptions = calendars.filter((c) => c.sourceUrl)
+  const when = (ms: number) => new Date(ms).toLocaleString(settings.language, { dateStyle: 'medium', timeStyle: 'short' })
+
+  /** Move or copy every event on this device into an account calendar. */
+  const transferLocal = async (mode: 'move' | 'copy') => {
+    const target = copyTarget || writable[0]!.id
+    const keys = localEvents.map(eventKey)
+    const count = new Set(localEvents.map((e) => e.uid)).size
+    setBusy(true)
+    const ok = mode === 'move' ? await moveEvents(keys, target) : await copyEvents(keys, target)
+    setBusy(false)
+    if (ok) showToast(tr(t, mode === 'move' ? 'movedN' : 'copiedN', { count }), 'success')
+  }
+
+  const subscribe = async () => {
+    const sourceUrl = subUrl.trim()
+    if (!sourceUrl) return
+    setBusy(true)
+    try {
+      await api.subscribe({ sourceUrl, color: newColor, timezone: settings.defaultTimezone })
+      setSubUrl('')
+      await refresh()
+      await loadCloud()
+    } catch (err) {
+      const code = err instanceof ApiError ? String(err.data.message ?? err.code) : 'error'
+      showToast(tr(t, 'subscribeFailed', { error: code }), 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const deleteAccount = async () => {
+    setBusy(true)
+    try {
+      await api.deleteAccount()
+      showToast(t.accountDeleted, 'success')
+      window.location.assign('/')
+    } catch {
+      showToast(t.syncError, 'error')
+      setBusy(false)
+    }
+  }
 
   const run = async (fn: () => Promise<unknown>, success?: string) => {
     setBusy(true)
@@ -102,7 +151,7 @@ export function AccountPanel() {
                 <span className="flex-1 text-sm">{t.onThisDevice} <span className="text-text-3">· {localEvents.length}</span></span>
                 <VisibilityToggle id="local" label={t.onThisDevice} />
               </li>
-              {calendars.map((c) => (
+              {own.map((c) => (
                 <li key={c.id} className="flex items-center gap-2 px-3 py-2.5">
                   <Dot color={c.color} />
                   <div className="flex-1 min-w-0">
@@ -161,23 +210,84 @@ export function AccountPanel() {
           {writable.length > 0 && localEvents.length > 0 && (
             <section className="rounded-xl border border-border p-3 space-y-3">
               <div>
-                <h3 className="text-sm font-semibold">{t.copyToAccount}</h3>
-                <p className="text-xs text-text-3">{t.copyToAccountDesc}</p>
+                <h3 className="text-sm font-semibold">{t.moveToAccount}</h3>
+                <p className="text-xs text-text-3">{t.moveToAccountDesc}</p>
               </div>
               <Select
                 label={t.saveTo}
-                value={copyTarget || writable[0]!.id}
+                value={writable.some((c) => c.id === copyTarget) ? copyTarget : writable[0]!.id}
                 onChange={(e) => setCopyTarget(e.target.value)}
                 options={writable.map((c) => ({ value: c.id, label: c.name }))}
               />
-              <Button disabled={busy} onClick={() => {
-                const target = copyTarget || writable[0]!.id
-                run(() => api.importEvents(target, localEvents), tr(t, 'copiedToAccount', { count: localEvents.length }))
-              }}>
-                <Upload size={16} /> {t.copyToAccount} ({localEvents.length})
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="primary" disabled={busy} onClick={() => transferLocal('move')}>
+                  <Upload size={16} /> {t.moveAll} ({localEvents.length})
+                </Button>
+                <Button disabled={busy} onClick={() => transferLocal('copy')}>
+                  <Copy size={16} /> {t.copyAll}
+                </Button>
+              </div>
             </section>
           )}
+
+          <section className="space-y-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-text-3">{t.subscriptions}</h3>
+            {subscriptions.length > 0 && (
+              <ul className="rounded-xl border border-border divide-y divide-border">
+                {subscriptions.map((c) => (
+                  <li key={c.id} className="flex items-center gap-2 px-3 py-2.5">
+                    <Dot color={c.color} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm truncate">{c.name}</div>
+                      <div className={cn('text-xs truncate', c.fetchError ? 'text-danger' : 'text-text-3')} title={c.sourceUrl ?? ''}>
+                        {c.fetchError
+                          ? tr(t, 'refreshError', { error: c.fetchError })
+                          : `${t.readOnly}${c.fetchedAt ? ` · ${tr(t, 'lastRefreshed', { time: when(c.fetchedAt) })}` : ''}`}
+                      </div>
+                    </div>
+                    <VisibilityToggle id={c.id} label={c.name} />
+                    {c.role === 'owner' && (
+                      <button className="p-1.5 rounded-md text-text-2 hover:bg-surface-3" title={t.refreshNow} aria-label={t.refreshNow} disabled={busy}
+                        onClick={() => run(() => api.refreshCalendar(c.id))}>
+                        <RefreshCw size={16} />
+                      </button>
+                    )}
+                    <button className="p-1.5 rounded-md text-text-2 hover:bg-surface-3" title={t.share} aria-label={t.share}
+                      onClick={() => setShareTarget({ calendarId: c.id, eventUid: null, title: c.name })}>
+                      <Share2 size={16} />
+                    </button>
+                    {c.role === 'owner' && (
+                      <button className="p-1.5 rounded-md text-danger hover:bg-danger/10" title={t.deleteCalendar} aria-label={t.deleteCalendar} disabled={busy}
+                        onClick={() => confirm(t.deleteCalendarConfirm) && run(() => api.deleteCalendar(c.id))}>
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form
+              className="rounded-xl border border-border p-3 space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault()
+                subscribe()
+              }}
+            >
+              <Input
+                label={t.subscribeUrl}
+                placeholder="https://… .ics"
+                type="url"
+                inputMode="url"
+                value={subUrl}
+                maxLength={2048}
+                onChange={(e) => setSubUrl(e.target.value)}
+              />
+              <p className="text-xs text-text-3">{t.subscribeUrlHint}</p>
+              <Button type="submit" variant="primary" disabled={busy || !subUrl.trim()}>
+                <Link2 size={16} /> {t.subscribeAdd}
+              </Button>
+            </form>
+          </section>
 
           {shared.length > 0 && (
             <section className="space-y-2">
@@ -211,6 +321,40 @@ export function AccountPanel() {
           )}
         </>
       )}
+
+      {status === 'signedIn' && (
+        <section className="rounded-xl border border-border p-3 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold">{t.yourData}</h3>
+            <p className="text-xs text-text-3">{t.yourDataDesc}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a href={api.exportUrl} download className="rw-btn h-10 inline-flex"><Download size={16} /> {t.downloadMyData}</a>
+            <Button variant="danger" onClick={() => { setDeleteText(''); setDeleting(true) }}>
+              <Trash2 size={16} /> {t.deleteAccount}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      <Modal open={deleting} onClose={() => setDeleting(false)} title={t.deleteAccount} fullScreenMobile={false}>
+        <form
+          className="p-4 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (deleteText.trim() === 'DELETE') deleteAccount()
+          }}
+        >
+          <p className="text-sm text-text-2">{t.deleteAccountDesc}</p>
+          <Input label={t.deleteAccountType} value={deleteText} autoComplete="off" onChange={(e) => setDeleteText(e.target.value)} />
+          <div className="flex gap-2 justify-end">
+            <Button type="button" variant="ghost" onClick={() => setDeleting(false)}>{t.cancel}</Button>
+            <Button type="submit" variant="danger" disabled={busy || deleteText.trim() !== 'DELETE'}>
+              <Trash2 size={16} /> {t.deleteAccount}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {shareTarget && (
         <ShareDialog

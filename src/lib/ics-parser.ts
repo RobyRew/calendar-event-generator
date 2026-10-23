@@ -15,7 +15,32 @@ import { windowsZoneToIana } from './windows-zones'
 export interface ParseOptions {
   /** Zone for floating times and all-day dates. Defaults to the host zone. */
   defaultTimezone?: string
+  /** Stop with a ParseLimitError once the file has more VEVENTs than this (counted as the parser reads them). */
+  maxEvents?: number
+  /**
+   * Stop with a ParseLimitError once the file's date values (DTSTART, DTEND,
+   * DTSTAMP, EXDATE and RDATE items…) cost more than this: 1 for a UTC or
+   * date-only value, 3 for one that needs a zone conversion. A feed of a few
+   * events with hundreds of thousands of EXDATEs is bounded too, not only one
+   * with many events.
+   */
+  maxDateWork?: number
 }
+
+/** Thrown when a file goes past a parse limit (events, date values, nesting). */
+export class ParseLimitError extends Error {
+  constructor(readonly limit: number, what = 'events') {
+    super(`more than ${limit} ${what}`)
+  }
+}
+
+/**
+ * Components nest a few levels in real files (VCALENDAR > VEVENT > VALARM). A
+ * deeper file is refused: each END line searches the open components, so
+ * thousands of nested BEGINs with hundreds of thousands of END lines took
+ * seconds, and deeper still overflowed the stack.
+ */
+const MAX_NESTING = 32
 
 // ── Lexing ──────────────────────────────────────────────────────────────────
 
@@ -95,14 +120,19 @@ function parseContentLine(line: string): Property | null {
   return { name, params, value: line.slice(i + 1) }
 }
 
-function buildTree(lines: string[]): Component {
+function buildTree(lines: string[], maxEvents = Infinity): Component {
   const root: Component = { name: 'ROOT', props: [], children: [] }
   const stack: Component[] = [root]
+  let vevents = 0
   for (const line of lines) {
     const prop = parseContentLine(line)
     if (!prop) continue
     if (prop.name === 'BEGIN') {
+      if (stack.length > MAX_NESTING) throw new ParseLimitError(MAX_NESTING, 'nested components')
       const c: Component = { name: prop.value.trim().toUpperCase(), props: [], children: [] }
+      // Counted on the parsed component name, so folding, parameters or spacing
+      // in the BEGIN line cannot hide an event from the limit.
+      if (c.name === 'VEVENT' && ++vevents > maxEvents) throw new ParseLimitError(maxEvents)
       stack[stack.length - 1]!.children.push(c)
       stack.push(c)
     } else if (prop.name === 'END') {
@@ -167,6 +197,8 @@ interface ZoneContext {
   defaultZone: string
   calendarZone: string | null
   defs: Map<string, TimezoneDefinition>
+  /** Date work still allowed (ParseOptions.maxDateWork), shared by the whole file. */
+  budget?: { left: number; limit: number }
 }
 
 interface DateRead extends ParsedICSDate {
@@ -175,6 +207,11 @@ interface DateRead extends ParsedICSDate {
 }
 
 function readDate(value: string, params: Record<string, string>, ctx: ZoneContext): DateRead | null {
+  if (ctx.budget) {
+    const v = value.trim()
+    ctx.budget.left -= /Z$/i.test(v) || /^\d{8}$/.test(v) || params['VALUE']?.toUpperCase() === 'DATE' ? 1 : 3
+    if (ctx.budget.left < 0) throw new ParseLimitError(ctx.budget.limit, 'units of date work')
+  }
   const tzid = params['TZID']?.trim()
   const isDateParam = params['VALUE']?.toUpperCase() === 'DATE'
   let zone = ctx.defaultZone
@@ -494,7 +531,8 @@ function parseEvent(c: Component, ctx: ZoneContext): CalendarEvent | null {
 }
 
 export function parseICS(content: string, options: ParseOptions = {}): ParsedCalendar {
-  const tree = buildTree(contentLines(content))
+  const tree = buildTree(contentLines(content), options.maxEvents)
+  const budget = options.maxDateWork !== undefined ? { left: options.maxDateWork, limit: options.maxDateWork } : undefined
   const calendars = descendants(tree, 'VCALENDAR')
   const roots = calendars.length > 0 ? calendars : [tree]
   const meta: CalendarMeta = { prodId: '', version: '2.0', calscale: 'GREGORIAN' }
@@ -520,6 +558,7 @@ export function parseICS(content: string, options: ParseOptions = {}): ParsedCal
       defaultZone: isValidTimeZone(options.defaultTimezone) ? options.defaultTimezone : hostTimeZone(),
       calendarZone: isValidTimeZone(meta.calendarTimezone) ? meta.calendarTimezone! : null,
       defs: new Map(tzComponents.map((d) => [d.tzid, d])),
+      budget,
     }
     for (const ve of descendants(cal, 'VEVENT')) {
       const ev = parseEvent(ve, ctx)

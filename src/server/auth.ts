@@ -46,7 +46,7 @@ export function getAuth(): LogtoAuth<SessionUser> | null {
         ...env,
         publicOrigin: publicOrigin(),
         cookieName: 'cg_sid',
-        store: sqliteSessionStore(getDatabase().sqlite),
+        store: sqliteSessionStore(getDatabase().sqlite, { subjectColumn: 'subject' }),
         resolveUser: (claims) => toSessionUser(upsertUserFromClaims(claims)),
       })
     : null

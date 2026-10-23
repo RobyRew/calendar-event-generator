@@ -46,6 +46,7 @@ export function useKeyboard() {
         // Through the editor's own close, which asks before dropping unsaved
         // changes; closing directly lost them.
         else if (ui.isEditorOpen) window.dispatchEvent(new CustomEvent('calgen:request-close'))
+        else if (ui.selecting) ui.stopSelecting()
       }
     }
 

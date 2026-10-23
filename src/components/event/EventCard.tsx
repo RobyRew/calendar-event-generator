@@ -5,7 +5,7 @@ import type { CalendarEvent } from '@/types'
 import { useSettingsStore } from '@/stores/settings-store'
 import { getTranslations } from '@/i18n'
 import { formatDate, formatTime, formatDuration } from '@/lib/utils'
-import { Clock, MapPin, Repeat, Bell, Users, FileDown, Pencil, Copy, Trash2, Share2 } from 'lucide-react'
+import { Clock, MapPin, Repeat, Bell, Users, FileDown, Pencil, Copy, Trash2, Share2, FolderInput, CopyPlus, CheckSquare, Check } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { generateSingleEventICS } from '@/lib/ics-generator'
 import { CLOUD } from '@/lib/cloud/api'
@@ -19,9 +19,16 @@ interface EventCardProps {
   onEdit?: () => void
   onDuplicate?: () => void
   onDelete?: () => void
+  /** Offered in the menu only when given (the list decides what the user may do). */
+  onMove?: () => void
+  onCopy?: () => void
+  onSelect?: () => void
+  /** Selection mode: a click toggles the card instead of opening it. */
+  selecting?: boolean
+  selected?: boolean
 }
 
-export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDelete }: EventCardProps) {
+export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDelete, onMove, onCopy, onSelect, selecting, selected }: EventCardProps) {
   const { settings } = useSettingsStore()
   const showToast = useUIStore((s) => s.showToast)
   const [shareOpen, setShareOpen] = useState(false)
@@ -100,7 +107,7 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
   const getMenuStyle = (): React.CSSProperties => {
     if (!menuPos) return {}
     const menuWidth = 200
-    const menuHeight = 200
+    const menuHeight = menuItems.length * 40 + 8
     let x = menuPos.x
     let y = menuPos.y
     if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 8
@@ -110,9 +117,13 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
     return { position: 'fixed', left: x, top: y, zIndex: 60 }
   }
 
-  const menuItems = [
+  const item = (icon: typeof Pencil, label: string, fn?: () => void) => (fn ? [{ icon, label, action: () => { setMenuPos(null); fn() } }] : [])
+  const menuItems: { icon: typeof Pencil; label: string; action: () => void; danger?: boolean }[] = [
     { icon: Pencil, label: t.editThisEvent, action: () => { setMenuPos(null); onEdit?.() } },
     { icon: Copy, label: t.duplicateEvent, action: () => { setMenuPos(null); onDuplicate?.() } },
+    ...item(FolderInput, t.moveTo, onMove),
+    ...item(CopyPlus, t.copyTo, onCopy),
+    ...item(CheckSquare, t.select, onSelect),
     { icon: FileDown, label: t.exportAsICS, action: handleQuickExport },
     // Live links need the event on the server; events on this device are offered a hint instead.
     ...(CLOUD
@@ -161,7 +172,8 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
     return (
       <>
         <div
-          role="button"
+          role={selecting ? 'checkbox' : 'button'}
+          aria-checked={selecting ? !!selected : undefined}
           tabIndex={0}
           onClick={handleClick}
           onContextMenu={handleContextMenu}
@@ -171,9 +183,11 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
           className={cn(
             'w-full text-left px-3 py-2 rounded-lg transition-all duration-150 select-none',
             'hover:bg-surface-2 active:scale-[0.98]',
+            selected && 'bg-accent/10 ring-1 ring-accent',
           )}
         >
           <div className="flex items-center gap-2">
+            {selecting && <SelectMark selected={!!selected} />}
             <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: event.color || '#007aff' }} />
             <span className="text-sm font-medium text-text truncate">{event.summary || t.newEvent}</span>
             <span className="text-xs text-text-3 ml-auto whitespace-nowrap">
@@ -190,7 +204,8 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
   return (
     <>
       <div
-        role="button"
+        role={selecting ? 'checkbox' : 'button'}
+        aria-checked={selecting ? !!selected : undefined}
         tabIndex={0}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
@@ -200,9 +215,11 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
         className={cn(
           'w-full text-left rounded-xl transition-all duration-150 bg-surface border border-border/50',
           'hover:shadow-md active:scale-[0.98] p-4 select-none',
+          selected && 'border-accent ring-1 ring-accent bg-accent/5',
         )}
       >
         <div className="flex items-start gap-3">
+          {selecting && <SelectMark selected={!!selected} />}
           <div
             className="w-1 h-full min-h-[40px] rounded-full shrink-0 self-stretch"
             style={{ backgroundColor: event.color || '#007aff' }}
@@ -268,7 +285,21 @@ export function EventCard({ event, compact, onClick, onEdit, onDuplicate, onDele
         </div>
       </div>
       {contextMenu}
-        {shareDialog}
+      {shareDialog}
     </>
+  )
+}
+
+function SelectMark({ selected }: { selected: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center',
+        selected ? 'bg-accent border-accent text-white' : 'border-text-3',
+      )}
+    >
+      {selected && <Check size={12} strokeWidth={3} />}
+    </span>
   )
 }

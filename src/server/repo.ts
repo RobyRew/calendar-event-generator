@@ -22,6 +22,10 @@ export const MAX_CALENDAR_CHARS = 16 * 1024 * 1024
 export const MAX_EVENT_CHARS = 64 * 1024
 export const MAX_OVERRIDES_PER_EVENT = 500
 export const MAX_SERIES_CHARS = 2 * 1024 * 1024
+// Per owner, so one account cannot grow without bound by adding calendars (an
+// export of it is held in memory while it is sent).
+export const MAX_CALENDARS_PER_USER = 50
+export const MAX_USER_CHARS = 64 * 1024 * 1024
 
 /**
  * Record a content change on a calendar. updated_at only ever moves forward, so
@@ -81,10 +85,27 @@ function seriesUsage(db: DB, calendarId: string, uid: string): { overrides: numb
 }
 
 /** Throw 413 unless adding `rows` rows and `chars` characters keeps the calendar and the series within bounds. */
+/** Stored characters across every calendar of the calendar's owner. */
+function ownerChars(db: DB, calendarId: string): number {
+  const owner = db.select({ id: calendars.ownerId }).from(calendars).where(eq(calendars.id, calendarId)).get()?.id
+  if (!owner) return 0
+  return db
+    .select({ chars: sql<number>`coalesce(sum(${events.size}), 0)` })
+    .from(events)
+    .innerJoin(calendars, eq(calendars.id, events.calendarId))
+    .where(eq(calendars.ownerId, owner))
+    .get()?.chars ?? 0
+}
+
+export function countOwnedCalendars(db: DB, ownerId: string): number {
+  return db.select({ n: sql<number>`count(*)` }).from(calendars).where(eq(calendars.ownerId, ownerId)).get()?.n ?? 0
+}
+
 function checkRoom(db: DB, calendarId: string, uid: string, isOverride: boolean, rows: number, chars: number): void {
   if (rows <= 0 && chars <= 0) return // shrinking an event is always allowed
   const cal = calendarUsage(db, calendarId)
   if (cal.rows + rows > MAX_EVENTS_PER_CALENDAR || cal.chars + chars > MAX_CALENDAR_CHARS) throw new HttpError(413, 'calendar_full')
+  if (chars > 0 && ownerChars(db, calendarId) + chars > MAX_USER_CHARS) throw new HttpError(413, 'account_full')
   const series = seriesUsage(db, calendarId, uid)
   if (isOverride && rows > 0 && series.overrides + rows > MAX_OVERRIDES_PER_EVENT) throw new HttpError(413, 'too_many_overrides')
   if (series.chars + chars > MAX_SERIES_CHARS) throw new HttpError(413, 'event_too_large')
@@ -98,6 +119,7 @@ function checkRoom(db: DB, calendarId: string, uid: string, isOverride: boolean,
 export function assertCalendarWithinBounds(db: DB, calendarId: string): void {
   const cal = calendarUsage(db, calendarId)
   if (cal.rows > MAX_EVENTS_PER_CALENDAR || cal.chars > MAX_CALENDAR_CHARS) throw new HttpError(413, 'calendar_full')
+  if (ownerChars(db, calendarId) > MAX_USER_CHARS) throw new HttpError(413, 'account_full')
   const over = db
     .select({ uid: events.uid })
     .from(events)
@@ -171,14 +193,58 @@ export function upsertEvent(
   return { ...next, calendarId }
 }
 
-/** Delete one occurrence override, or (recurrenceId '') the event with all its overrides. */
-export function deleteEvent(db: DB, calendarId: string, uid: string, recurrenceId = ''): number {
-  const where = recurrenceId
+/**
+ * Move whole events (master plus overrides, by UID) to another calendar, keeping
+ * their UIDs and stored data. One transaction: it fails as a whole when the target
+ * already holds one of the UIDs (409 uid_exists) or would go over its bounds (413).
+ * Event-level invites and share links point at the event's old calendar, so they
+ * are removed, as when the event is deleted.
+ */
+export function moveEventsToCalendar(db: DB, sourceId: string, targetId: string, uids: string[], now = Date.now()): CalendarEvent[] {
+  if (sourceId === targetId) throw new HttpError(400, 'same_calendar')
+  const unique = [...new Set(uids)]
+  return db.transaction(() => {
+    const clash = db
+      .select({ uid: events.uid })
+      .from(events)
+      .where(and(eq(events.calendarId, targetId), inArray(events.uid, unique)))
+      .get()
+    if (clash) throw new HttpError(409, 'uid_exists', clash.uid)
+    const moved = db
+      .update(events)
+      .set({ calendarId: targetId, updatedAt: now })
+      .where(and(eq(events.calendarId, sourceId), inArray(events.uid, unique)))
+      .run()
+    if (moved.changes === 0) throw new HttpError(404, 'event_not_found')
+    db.delete(memberships)
+      .where(and(eq(memberships.resourceType, 'event'), inArray(memberships.resourceId, unique.map((u) => eventResourceId(sourceId, u)))))
+      .run()
+    db.delete(shareLinks).where(and(eq(shareLinks.calendarId, sourceId), inArray(shareLinks.eventUid, unique))).run()
+    assertCalendarWithinBounds(db, targetId)
+    touchCalendar(db, sourceId, now)
+    touchCalendar(db, targetId, now)
+    return db
+      .select()
+      .from(events)
+      .where(and(eq(events.calendarId, targetId), inArray(events.uid, unique)))
+      .orderBy(asc(events.uid), asc(events.recurrenceId))
+      .all()
+      .map(rowToEvent)
+  })
+}
+
+/**
+ * Delete one occurrence override, or (recurrenceId '') the event with all its
+ * overrides. masterOnly deletes just the master row and keeps the overrides, and
+ * the event's invites and links (undo uses it when a series keeps its overrides).
+ */
+export function deleteEvent(db: DB, calendarId: string, uid: string, recurrenceId = '', masterOnly = false): number {
+  const where = recurrenceId || masterOnly
     ? and(eq(events.calendarId, calendarId), eq(events.uid, uid), eq(events.recurrenceId, recurrenceId))
     : and(eq(events.calendarId, calendarId), eq(events.uid, uid))
   const res = db.delete(events).where(where).run()
   if (res.changes) touchCalendar(db, calendarId)
-  if (!recurrenceId) {
+  if (!recurrenceId && !masterOnly) {
     db.delete(memberships).where(and(eq(memberships.resourceType, 'event'), eq(memberships.resourceId, eventResourceId(calendarId, uid)))).run()
     db.delete(shareLinks).where(and(eq(shareLinks.calendarId, calendarId), eq(shareLinks.eventUid, uid))).run()
   }
@@ -202,6 +268,10 @@ export interface CalendarView {
   timezone: string
   role: Role
   ownerName: string | null
+  /** The .ics URL of a subscription calendar (read-only); null for a normal calendar. */
+  sourceUrl: string | null
+  fetchedAt: number | null
+  fetchError: string | null
 }
 
 export function getCalendar(db: DB, id: string): CalendarRow | undefined {
@@ -230,10 +300,17 @@ export function listCalendarsForUser(db: DB, userId: string): CalendarView[] {
     timezone: cal.timezone,
     role: calendarRole(db, userId, cal)!,
     ownerName: ownerName ?? ownerEmail,
+    sourceUrl: cal.sourceUrl,
+    fetchedAt: cal.fetchedAt,
+    fetchError: cal.fetchError,
   }))
 }
 
-export function createCalendar(db: DB, ownerId: string, input: { name: string; description?: string; color?: string; timezone?: string }): CalendarRow {
+export function createCalendar(
+  db: DB,
+  ownerId: string,
+  input: { name: string; description?: string; color?: string; timezone?: string; sourceUrl?: string | null },
+): CalendarRow {
   const now = Date.now()
   const row: CalendarRow = {
     id: randomUUID(),
@@ -244,6 +321,11 @@ export function createCalendar(db: DB, ownerId: string, input: { name: string; d
     timezone: resolveZone(input.timezone),
     createdAt: now,
     updatedAt: now,
+    sourceUrl: input.sourceUrl ?? null,
+    sourceEtag: null,
+    sourceLastModified: null,
+    fetchedAt: null,
+    fetchError: null,
   }
   db.insert(calendars).values(row).run()
   return row
@@ -257,7 +339,17 @@ export function updateCalendar(db: DB, id: string, patch: { name?: string; descr
     // could then land on a value the feed cache already held.
     .set({
       ...patch,
-      ...(patch.timezone !== undefined ? { timezone: resolveZone(patch.timezone) } : {}),
+      ...(patch.timezone !== undefined
+        ? {
+            timezone: resolveZone(patch.timezone),
+            // A subscription's floating times are read in its zone: forget the
+            // ETag so the next refresh fetches and parses again (the background
+            // job picks it up), instead of keeping times parsed in the old zone.
+            sourceEtag: null,
+            sourceLastModified: null,
+            fetchedAt: null,
+          }
+        : {}),
       updatedAt: sql`max(${calendars.updatedAt} + 1, ${Date.now()})`,
     })
     .where(eq(calendars.id, id))

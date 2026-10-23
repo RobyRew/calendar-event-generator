@@ -27,6 +27,8 @@ interface AccountState {
   load: () => Promise<void>
   refresh: () => Promise<void>
   toggleHidden: (id: string) => void
+  /** Replace the hidden list (preferences sync); does not count as a local change. */
+  setHidden: (hidden: string[]) => void
 }
 
 export const useAccountStore = create<AccountState>((set, get) => ({
@@ -58,6 +60,11 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 
   toggleHidden: (id) => {
     const hidden = get().hidden.includes(id) ? get().hidden.filter((h) => h !== id) : [...get().hidden, id]
+    get().setHidden(hidden)
+    hiddenChanged()
+  },
+
+  setHidden: (hidden) => {
     try {
       localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden))
     } catch { /* storage unavailable */ }
@@ -65,9 +72,36 @@ export const useAccountStore = create<AccountState>((set, get) => ({
   },
 }))
 
-/** Calendars the user may add events to. */
+let onHiddenChange: (() => void) | null = null
+/** Preferences sync registers here to hear about local visibility changes. */
+export function onHiddenChanged(fn: (() => void) | null): void {
+  onHiddenChange = fn
+}
+function hiddenChanged() {
+  onHiddenChange?.()
+}
+
+/** Calendars the user may add events to: owned or invited as editor, and not a subscription (read-only). */
 export function writableCalendars(calendars: CloudCalendar[]): CloudCalendar[] {
-  return calendars.filter((c) => c.role === 'owner' || c.role === 'editor')
+  return calendars.filter((c) => (c.role === 'owner' || c.role === 'editor') && !c.sourceUrl)
+}
+
+/**
+ * Whether the signed-in user may change this event: device events always; account
+ * events when its calendar is writable, or when it was shared with them as editor.
+ */
+export function canEditEvent(e: { calendarId?: string; uid: string }): boolean {
+  if (!e.calendarId) return true
+  const { calendars, shared } = useAccountStore.getState()
+  if (writableCalendars(calendars).some((c) => c.id === e.calendarId)) return true
+  if (calendars.some((c) => c.id === e.calendarId && c.sourceUrl)) return false
+  return shared.some((s) => s.calendarId === e.calendarId && s.uid === e.uid && s.role === 'editor')
+}
+
+/** Whether events of this calendar (undefined = this device) can be moved out of it: calendar-level write access. */
+export function canEditCalendar(calendarId: string | undefined): boolean {
+  if (!calendarId) return true
+  return writableCalendars(useAccountStore.getState().calendars).some((c) => c.id === calendarId)
 }
 
 /**

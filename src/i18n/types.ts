@@ -372,9 +372,6 @@ export interface Translations {
   renameCalendar: string
   deleteCalendar: string
   deleteCalendarConfirm: string
-  copyToAccount: string
-  copyToAccountDesc: string
-  copiedToAccount: string
   saveTo: string
   share: string
   shareLiveLink: string
@@ -436,4 +433,44 @@ export interface Translations {
   accountsUnavailable: string
   busyLabel: string
   syncError: string
+
+  // Moving, selection, subscriptions, account data
+  select: string
+  selectedN: string
+  moveTo: string
+  copyTo: string
+  moveEvents: string
+  copyEvents: string
+  moveHint: string
+  copyHint: string
+  movedN: string
+  copiedN: string
+  deleteSelectedConfirm: string
+  deletedN: string
+  moveFailedExists: string
+  actionFailed: string
+  readOnlyEvent: string
+  noMoveTargets: string
+  moveToAccount: string
+  moveToAccountDesc: string
+  moveAll: string
+  copyAll: string
+  importInto: string
+  subscriptions: string
+  subscribeToCalendar: string
+  subscribeUrl: string
+  subscribeUrlHint: string
+  subscribeAdd: string
+  refreshNow: string
+  lastRefreshed: string
+  refreshError: string
+  subscribeFailed: string
+  readOnly: string
+  yourData: string
+  yourDataDesc: string
+  downloadMyData: string
+  deleteAccount: string
+  deleteAccountDesc: string
+  deleteAccountType: string
+  accountDeleted: string
 }

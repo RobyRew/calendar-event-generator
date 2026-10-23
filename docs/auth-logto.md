@@ -43,6 +43,15 @@ For local development, register a second app (or add URIs to a dev app) with `ht
 
 A request without access gets 404, not 403, so ids cannot be probed. Writes require `Content-Type: application/json`, which a cross-site form cannot send. Together with `SameSite=Lax` cookies and Astro's `checkOrigin`, this is the CSRF protection.
 
+### Preferences
+
+`user_prefs` holds one JSON document per user with three sections: `settings`, `templates` (custom ones; built-ins are seeded per device) and `hidden` (calendars hidden from the views). Each section has a version. The client (`src/lib/cloud/prefs-sync.ts`) writes a section with `PUT /api/prefs/<section> {value, baseVersion}`; when another device wrote in between, the server answers `409` with its copy, and the client merges three ways against the value both last agreed on (per setting, per template, per hidden calendar), so each side keeps its own changes, deletions included, and writes again. A device's first sync for a user takes the account's settings and adds its own templates and hidden calendars; when a different user signs in on the same browser, that user's account replaces the previous user's preferences on the device and nothing is uploaded. "Clear all data" in Settings clears only this device.
+
+### Export and deletion
+
+- `GET /api/account/export`: a JSON download, streamed 200 events at a time and only as fast as the client reads it (server.mjs hands the Node response to the route), with the user, preferences, owned calendars with their events, every share link on them (revoked ones too, without tokens) and members, the user's own links on other people's calendars, and references to what others shared with the user. One export at a time and two a minute per user.
+- `DELETE /api/account {"confirm":"DELETE"}`: deletes the user's calendars (their events, links and other people's access to them), the user's memberships and links elsewhere, preferences, and every stored session whose ID token belongs to the user, then clears the session cookie. The Logto identity at auth.robyrew.com is not touched; signing in again starts an empty account.
+
 ## Cookie
 
-`__Host-cg_sid` on https (Secure, Path=/, host-only), `cg_sid` on http for local development. `HttpOnly`, `SameSite=Lax`, 14 days.
+`__Host-cg_sid` on https (Secure, Path=/, host-only), `cg_sid` on http for local development. Each stored session records the Logto subject (`logto_sessions.subject`, indexed; empty before sign-in), so all of a user's sessions can be ended at once when the account is deleted. `HttpOnly`, `SameSite=Lax`, 14 days.

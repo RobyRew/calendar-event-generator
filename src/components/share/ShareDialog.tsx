@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/Select'
 import { useSettingsStore } from '@/stores/settings-store'
 import { useUIStore } from '@/stores/ui-store'
 import { getTranslations, t as tr, type Translations } from '@/i18n'
+import { useAccountStore } from '@/stores/account-store'
 import { api, type Member, type Permission, type Role, type Share } from '@/lib/cloud/api'
 import { cn } from '@/lib/utils'
 
@@ -46,6 +47,9 @@ export function ShareDialog({ open, onClose, calendarId, eventUid = null, title 
   const [busy, setBusy] = useState(false)
 
   const fmt = (ms: number) => new Intl.DateTimeFormat(settings.language, { dateStyle: 'medium', timeStyle: 'short' }).format(ms)
+  // A subscription calendar is read-only, so an editor invite to it would grant nothing.
+  const readOnly = useAccountStore((st) => st.calendars.some((c) => c.id === calendarId && !!c.sourceUrl))
+  const permissions = readOnly ? PERMISSIONS.filter((p) => p !== 'edit') : PERMISSIONS
 
   const reload = useCallback(async () => {
     const res = await api.shares(calendarId, eventUid)
@@ -112,7 +116,7 @@ export function ShareDialog({ open, onClose, calendarId, eventUid = null, title 
         {tab === 'links' && isOwner && (
           <section className="space-y-3 rounded-xl border border-border p-3">
             <div className="space-y-2" role="radiogroup" aria-label={t.access}>
-              {PERMISSIONS.map((p) => {
+              {permissions.map((p) => {
                 const [name, desc] = permissionText(t, p)
                 return (
                   <label key={p} className={cn('flex gap-3 items-start rounded-lg p-2 cursor-pointer', permission === p ? 'bg-accent/10' : 'hover:bg-surface-2')}>
